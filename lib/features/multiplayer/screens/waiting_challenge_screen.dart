@@ -1,10 +1,108 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/tactile_button.dart';
 import 'battle_screen.dart';
 import '../../../core/services/battle_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+class WaitingPulse extends StatefulWidget {
+  final String status;
+  const WaitingPulse({super.key, required this.status});
+
+  @override
+  State<WaitingPulse> createState() => _WaitingPulseState();
+}
+
+class _WaitingPulseState extends State<WaitingPulse> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+
+    _pulse = Tween<double>(begin: 0.95, end: 1.15).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isAway = widget.status == 'away';
+    final isOffline = widget.status == 'offline';
+    final glowColor = isOffline
+        ? Colors.grey[400]!
+        : (isAway ? Colors.amber[600]! : AppTheme.primary);
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Outer glowing pulsing ring
+            Container(
+              height: 140 * _pulse.value,
+              width: 140 * _pulse.value,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: glowColor.withValues(alpha: 0.08),
+                border: Border.all(
+                  color: glowColor.withValues(alpha: 0.18),
+                  width: 2,
+                ),
+              ),
+            ),
+            // Middle ring
+            Container(
+              height: 110,
+              width: 110,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: glowColor.withValues(alpha: 0.12),
+                border: Border.all(
+                  color: glowColor.withValues(alpha: 0.25),
+                  width: 2,
+                ),
+              ),
+            ),
+            // Core
+            Container(
+              height: 86,
+              width: 86,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: glowColor.withValues(alpha: 0.22),
+                    blurRadius: 18,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Text('⚔️', style: TextStyle(fontSize: 42)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
 
 class WaitingChallengeScreen extends StatefulWidget {
   final String sessionId;
@@ -29,31 +127,112 @@ class _WaitingChallengeScreenState extends State<WaitingChallengeScreen>
   bool _navigated = false;
   Timer? _cancelTimer;
   RealtimeChannel? _channel;
+  RealtimeChannel? _presenceChannel;
+
+  String _opponentStatus = 'offline';
+  String? _avatarUrl;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    
+
     // Show cancel button after 5 seconds to avoid locking screen
     _cancelTimer = Timer(const Duration(seconds: 5), () {
       if (mounted) setState(() => _showCancel = true);
     });
-    
+
     _channel = _subscribeToSession();
+    _fetchOpponentDetails();
+    _subscribeToOpponentPresence();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && !_navigated && !_rejected) {
       _checkSessionStatus();
+      _fetchOpponentPresence();
     }
+  }
+
+  Future<void> _fetchOpponentDetails() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', widget.opponentId)
+          .maybeSingle();
+      if (res != null && mounted) {
+        setState(() {
+          _avatarUrl = res['avatar_url'] as String?;
+        });
+      }
+    } catch (_) {}
+    await _fetchOpponentPresence();
+  }
+
+  Future<void> _fetchOpponentPresence() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('user_presences')
+          .select('presence_status, last_seen')
+          .eq('user_id', widget.opponentId)
+          .maybeSingle();
+
+      if (res != null && mounted) {
+        final lastSeenStr = res['last_seen'] as String?;
+        var status = res['presence_status'] as String? ?? 'offline';
+
+        if (lastSeenStr != null) {
+          final lastSeen = DateTime.tryParse(lastSeenStr);
+          if (lastSeen == null || DateTime.now().difference(lastSeen).inMinutes >= 2) {
+            status = 'offline';
+          }
+        }
+        setState(() {
+          _opponentStatus = status;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _subscribeToOpponentPresence() {
+    _presenceChannel = Supabase.instance.client
+        .channel('opponent-presence-${widget.opponentId}');
+
+    _presenceChannel!.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'user_presences',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'user_id',
+        value: widget.opponentId,
+      ),
+      callback: (payload) {
+        if (!mounted) return;
+        final rec = payload.newRecord;
+        if (rec.isNotEmpty) {
+          final lastSeenStr = rec['last_seen'] as String?;
+          var status = rec['presence_status'] as String? ?? 'offline';
+          if (lastSeenStr != null) {
+            final lastSeen = DateTime.tryParse(lastSeenStr);
+            if (lastSeen == null || DateTime.now().difference(lastSeen).inMinutes >= 2) {
+              status = 'offline';
+            }
+          }
+          setState(() {
+            _opponentStatus = status;
+          });
+        }
+      },
+    ).subscribe();
   }
 
   Future<void> _checkSessionStatus() async {
     final session = await BattleService.getSession(widget.sessionId);
     if (!mounted || session == null) return;
-    
+
     final status = session['status'] as String?;
     if (status == 'active' && !_navigated) {
       _navigated = true;
@@ -120,6 +299,7 @@ class _WaitingChallengeScreenState extends State<WaitingChallengeScreen>
     WidgetsBinding.instance.removeObserver(this);
     _cancelTimer?.cancel();
     _channel?.unsubscribe();
+    _presenceChannel?.unsubscribe();
     super.dispose();
   }
 
@@ -172,11 +352,23 @@ class _WaitingChallengeScreenState extends State<WaitingChallengeScreen>
       },
       child: Scaffold(
         backgroundColor: AppTheme.background,
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: _rejected ? _buildRejected() : _buildWaiting(),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppTheme.primary.withValues(alpha: 0.06),
+                AppTheme.background,
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: _rejected ? _buildRejected() : _buildWaiting(),
+              ),
             ),
           ),
         ),
@@ -185,46 +377,115 @@ class _WaitingChallengeScreenState extends State<WaitingChallengeScreen>
   }
 
   Widget _buildWaiting() {
+    final isAway = _opponentStatus == 'away';
+    final isOffline = _opponentStatus == 'offline';
+    
+    final statusColor = isOffline
+        ? Colors.grey
+        : (isAway ? Colors.amber[800]! : AppTheme.success);
+    
+    final statusText = isOffline
+        ? 'Fuera de línea (Le llegará Push)'
+        : (isAway ? 'Ausente' : 'En línea');
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Squishy Battle Icon carrier
-        Container(
-          height: 120,
-          width: 120,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFFAD6),
-            borderRadius: BorderRadius.circular(AppTheme.radiusExtraLarge),
-            border: Border.all(color: AppTheme.secondary, width: 2),
-          ),
-          child: const Center(
-            child: Text('⚔️', style: TextStyle(fontSize: 52)),
-          ),
-        ),
-        const SizedBox(height: 32),
+        WaitingPulse(status: _opponentStatus),
+        const SizedBox(height: 40),
         Text(
-          'Esperando rival...',
-          style: AppTheme.displayLg.copyWith(fontSize: 26),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Enviamos un desafío de verbo a ${widget.opponentName}. Esperemos a que acepte el duelo.',
-          textAlign: TextAlign.center,
-          style: AppTheme.bodyLg.copyWith(color: AppTheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: 48),
-        const SizedBox(
-          width: 48,
-          height: 48,
-          child: CircularProgressIndicator(
+          'Desafiando rival...',
+          style: AppTheme.displayLg.copyWith(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
             color: AppTheme.primary,
-            strokeWidth: 4,
           ),
         ),
+        const SizedBox(height: 24),
+        
+        // High fidelity glassmorphic card for opponent status
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppTheme.radiusExtraLarge),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(AppTheme.radiusExtraLarge),
+                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15), width: 1.5),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildOpponentAvatar(),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.opponentName,
+                              style: AppTheme.labelLg.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 9,
+                                  height: 9,
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    statusText,
+                                    style: TextStyle(
+                                      color: statusColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  const Divider(color: AppTheme.surfaceContainer, height: 1),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Esperando a que acepte el combate de verbos en tiempo real...',
+                    textAlign: TextAlign.center,
+                    style: AppTheme.bodyMd.copyWith(
+                      color: AppTheme.onSurfaceVariant,
+                      fontSize: 14,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        
         const SizedBox(height: 48),
         if (_showCancel)
           SizedBox(
-            width: 200,
+            width: 220,
             child: TactileButton(
               text: 'Cancelar reto',
               backgroundColor: Colors.white,
@@ -238,36 +499,75 @@ class _WaitingChallengeScreenState extends State<WaitingChallengeScreen>
     );
   }
 
+  Widget _buildOpponentAvatar() {
+    if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: 22,
+        backgroundImage: NetworkImage(_avatarUrl!),
+      );
+    }
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryLight.withValues(alpha: 0.5),
+        shape: BoxShape.circle,
+        border: Border.all(color: AppTheme.primary, width: 1.5),
+      ),
+      child: Center(
+        child: Text(
+          widget.opponentName.isNotEmpty ? widget.opponentName[0].toUpperCase() : '?',
+          style: const TextStyle(
+            color: AppTheme.primary,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRejected() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          height: 120,
-          width: 120,
+          height: 110,
+          width: 110,
           decoration: BoxDecoration(
             color: const Color(0xFFFFECEF),
             borderRadius: BorderRadius.circular(AppTheme.radiusExtraLarge),
-            border: Border.all(color: AppTheme.error, width: 2),
+            border: Border.all(color: AppTheme.error, width: 2.5),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.error.withValues(alpha: 0.12),
+                blurRadius: 16,
+                spreadRadius: 2,
+              )
+            ],
           ),
           child: const Center(
-            child: Text('❌', style: TextStyle(fontSize: 52)),
+            child: Text('❌', style: TextStyle(fontSize: 48)),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
         Text(
           'Reto rechazado',
-          style: AppTheme.displayLg.copyWith(fontSize: 26, color: AppTheme.error),
+          style: AppTheme.displayLg.copyWith(
+            fontSize: 28,
+            color: AppTheme.error,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Text(
           '${widget.opponentName} ha declinado o cancelado el desafío por esta vez.',
           textAlign: TextAlign.center,
           style: AppTheme.bodyLg.copyWith(color: AppTheme.onSurfaceVariant),
         ),
-        const SizedBox(height: 40),
+        const SizedBox(height: 48),
         SizedBox(
-          width: 160,
+          width: 180,
           child: TactileButton(
             text: 'Volver',
             backgroundColor: AppTheme.primary,

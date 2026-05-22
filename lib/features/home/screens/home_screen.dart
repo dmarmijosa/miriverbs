@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/squishy_progress_bar.dart';
 import '../../../core/widgets/feedback_toast.dart';
@@ -18,6 +20,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _profile;
   List<Map<String, dynamic>> _completedProgress = [];
+  String _tiktokName = 'Teacher Miryan❤️👩‍🏫💻';
+  String _tiktokUrl = 'https://www.tiktok.com/@miryanyanez16';
 
 
 
@@ -81,11 +85,57 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadProfile() async {
     final data = await AuthService.getProfile();
     final progress = await ProgressService.fetchSublevelProgress();
+    
+    try {
+      final configs = await Supabase.instance.client
+          .from('app_configs')
+          .select()
+          .inFilter('key', ['tiktok_name', 'tiktok_url']);
+      if (configs.isNotEmpty) {
+        for (final row in configs) {
+          final k = row['key'];
+          final v = row['value'];
+          if (k == 'tiktok_name' && v != null) {
+            _tiktokName = v;
+          } else if (k == 'tiktok_url' && v != null) {
+            _tiktokUrl = v;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading TikTok configs from Supabase: $e');
+    }
+
     if (mounted) {
       setState(() {
         _profile = data;
         _completedProgress = progress;
       });
+    }
+  }
+
+  Future<void> _launchTikTok() async {
+    try {
+      final uri = Uri.parse(_tiktokUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          FeedbackToast.showError(
+            context,
+            title: 'Error de enlace',
+            message: 'No se pudo abrir la cuenta de TikTok.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        FeedbackToast.showError(
+          context,
+          title: 'Error',
+          message: 'Ocurrió un problema al abrir el enlace.',
+        );
+      }
     }
   }
 
@@ -294,9 +344,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Hola, $name 👋',
-                              style: AppTheme.headlineMd.copyWith(fontSize: 20),
+                            Row(
+                              children: [
+                                Text(
+                                  'Hola, ',
+                                  style: AppTheme.headlineMd.copyWith(fontSize: 20),
+                                ),
+                                Flexible(
+                                  child: Text(
+                                    name,
+                                    style: AppTheme.headlineMd.copyWith(fontSize: 20),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                Text(
+                                  ' 👋',
+                                  style: AppTheme.headlineMd.copyWith(fontSize: 20),
+                                ),
+                              ],
                             ),
                             Text(
                               '¿Listo para practicar hoy?',
@@ -402,6 +468,72 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     Text(
                                       'Ver video de presentación del método',
+                                      style: AppTheme.bodyMd.copyWith(
+                                        color: AppTheme.onSurfaceVariant,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: AppTheme.outline,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ── TikTok Social Card ─────────────────────────────────────
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                      border: Border.all(color: AppTheme.surfaceContainer, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                        onTap: _launchTikTok,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF2F2F2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Text(
+                                  '🎵',
+                                  style: TextStyle(fontSize: 20),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _tiktokName,
+                                      style: AppTheme.labelLg.copyWith(fontSize: 15),
+                                    ),
+                                    Text(
+                                      '¡Aprende inglés con los mejores videos de TikTok!',
                                       style: AppTheme.bodyMd.copyWith(
                                         color: AppTheme.onSurfaceVariant,
                                         fontSize: 11,
@@ -564,5 +696,5 @@ class _HomeScreenState extends State<HomeScreen> {
         fullscreenDialog: true,
       ),
     );
-  }
-}
+  }}
+

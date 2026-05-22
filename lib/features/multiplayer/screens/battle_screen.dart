@@ -321,10 +321,80 @@ class _BattleScreenState extends State<BattleScreen> with SingleTickerProviderSt
   }
 
   Future<void> _checkOpponentStatus() async {
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    if (myId == null) return;
+
+    final session = await BattleService.getSession(widget.sessionId);
+    if (!mounted) return;
+
+    if (session != null) {
+      final status = session['status'] as String?;
+      final startedAtStr = session['started_at'] as String?;
+
+      // 1. Explicit abandonment check
+      if (status == 'abandoned') {
+        _pollingTimer?.cancel();
+        _resultsChannel?.unsubscribe();
+        setState(() {
+          _isLoading = false;
+          _opponentResult = {
+            'score': 0,
+            'errors': 10,
+            'time_taken_ms': 45000,
+            'completed_at': DateTime.now().toIso8601String(),
+            'abandoned': true,
+          };
+          _winnerId = myId;
+          _hasFinishedOpponent = true;
+        });
+        if (mounted) {
+          FeedbackToast.showWarning(
+            context,
+            title: '¡Victoria por abandono! 🏳️',
+            message: 'El oponente ha abandonado la batalla.',
+          );
+        }
+        await BattleService.recordMyOutcome('win');
+        return;
+      }
+
+      // 2. Absolute time limit check (55 seconds max since game start)
+      if (startedAtStr != null) {
+        final startedAt = DateTime.tryParse(startedAtStr);
+        if (startedAt != null) {
+          final elapsed = DateTime.now().difference(startedAt);
+          if (elapsed.inSeconds > 55) {
+            _pollingTimer?.cancel();
+            _resultsChannel?.unsubscribe();
+            setState(() {
+              _isLoading = false;
+              _opponentResult = {
+                'score': 0,
+                'errors': 10,
+                'time_taken_ms': 45000,
+                'completed_at': DateTime.now().toIso8601String(),
+                'timeout': true,
+              };
+              _winnerId = myId;
+              _hasFinishedOpponent = true;
+            });
+            if (mounted) {
+              FeedbackToast.showWarning(
+                context,
+                title: 'Límite de tiempo superado ⏰',
+                message: 'El oponente ha tardado demasiado o se desconectó. ¡Victoria por defecto!',
+              );
+            }
+            await BattleService.recordMyOutcome('win');
+            return;
+          }
+        }
+      }
+    }
+
     final results = await BattleService.getResults(widget.sessionId);
     if (!mounted) return;
 
-    final myId = Supabase.instance.client.auth.currentUser?.id;
     final mine = results.firstWhere((r) => r['user_id'] == myId, orElse: () => {});
     final theirs = results.firstWhere((r) => r['user_id'] == widget.opponentId, orElse: () => {});
 
@@ -354,6 +424,19 @@ class _BattleScreenState extends State<BattleScreen> with SingleTickerProviderSt
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'session_id',
+            value: widget.sessionId,
+          ),
+          callback: (payload) {
+            _checkOpponentStatus();
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'battle_sessions',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
             value: widget.sessionId,
           ),
           callback: (payload) {

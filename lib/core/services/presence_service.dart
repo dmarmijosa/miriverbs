@@ -12,6 +12,21 @@ class PresenceService {
       await _client.from('user_presences').upsert({
         'user_id': uid,
         'is_online': true,
+        'presence_status': 'online',
+        'last_seen': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {}
+  }
+
+  /// Marcar al usuario actual como "Away" (Ausente) en Supabase.
+  static Future<void> goAway() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      await _client.from('user_presences').upsert({
+        'user_id': uid,
+        'is_online': true,
+        'presence_status': 'away',
         'last_seen': DateTime.now().toIso8601String(),
       });
     } catch (_) {}
@@ -25,6 +40,7 @@ class PresenceService {
       await _client.from('user_presences').upsert({
         'user_id': uid,
         'is_online': false,
+        'presence_status': 'offline',
         'last_seen': DateTime.now().toIso8601String(),
       });
     } catch (_) {}
@@ -38,13 +54,14 @@ class PresenceService {
       await _client.from('user_presences').upsert({
         'user_id': uid,
         'is_online': true,
+        'presence_status': 'online',
         'last_seen': DateTime.now().toIso8601String(),
       });
     } catch (_) {}
   }
 
-  /// Obtener la lista de todos los usuarios registrados que están online.
-  /// Se considera online si su último 'last_seen' es de hace menos de 2 minutos.
+  /// Obtener la lista de todos los usuarios registrados que están online o away.
+  /// Se considera online/away si su último 'last_seen' es de hace menos de 2 minutos.
   static Future<List<Map<String, dynamic>>> getOnlinePlayers() async {
     final uid = _uid;
     if (uid == null) return [];
@@ -52,13 +69,13 @@ class PresenceService {
       // 1. Obtener todas las presencias que estén marcadas como online
       final presencesRes = await _client
           .from('user_presences')
-          .select('user_id, is_online, last_seen')
+          .select('user_id, is_online, last_seen, presence_status')
           .eq('is_online', true);
 
       final onlinePresences = List<Map<String, dynamic>>.from(presencesRes);
       if (onlinePresences.isEmpty) return [];
 
-      final activeUserIds = <String>[];
+      final activeUserPresences = <String, String>{};
       for (final p in onlinePresences) {
         final userId = p['user_id'] as String;
         if (userId == uid) continue; // Omitir el usuario actual
@@ -68,26 +85,32 @@ class PresenceService {
           final lastSeen = DateTime.tryParse(lastSeenStr);
           if (lastSeen != null &&
               DateTime.now().difference(lastSeen).inMinutes < 2) {
-            activeUserIds.add(userId);
+            final status = p['presence_status'] as String? ?? 'online';
+            if (status == 'online' || status == 'away') {
+              activeUserPresences[userId] = status;
+            }
           }
         }
       }
 
-      if (activeUserIds.isEmpty) return [];
+      if (activeUserPresences.isEmpty) return [];
 
       // 2. Obtener los perfiles correspondientes a los usuarios activos
       final profilesRes = await _client
           .from('profiles')
           .select('id, full_name, avatar_url')
-          .inFilter('id', activeUserIds);
+          .inFilter('id', activeUserPresences.keys.toList());
 
       final profiles = List<Map<String, dynamic>>.from(profilesRes);
       return profiles.map((profile) {
+        final userId = profile['id'] as String;
+        final status = activeUserPresences[userId] ?? 'online';
         return {
-          'user_id': profile['id'],
+          'user_id': userId,
           'full_name': profile['full_name'] ?? 'Usuario Anónimo',
           'avatar_url': profile['avatar_url'] ?? '',
-          'is_online': true,
+          'is_online': status == 'online',
+          'presence_status': status,
         };
       }).toList();
     } catch (_) {

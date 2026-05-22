@@ -6,11 +6,12 @@ import '../../../core/widgets/feedback_toast.dart';
 import '../../../core/services/presence_service.dart';
 import '../../../core/services/battle_service.dart';
 import '../../../core/services/friend_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../main.dart' show appNavigatorKey, appReady;
-import '../screens/battle_screen.dart';
 import '../screens/waiting_challenge_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'incoming_challenge_alert.dart';
 
 class OnlineFriendsFab extends StatefulWidget {
   const OnlineFriendsFab({super.key});
@@ -88,8 +89,9 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
     if (state == AppLifecycleState.resumed) {
       PresenceService.goOnline();
       _fetchPlayers();
-    } else if (state == AppLifecycleState.paused) {
-      PresenceService.goOffline();
+      NotificationService.syncTokenToDatabase();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      PresenceService.goAway();
     }
   }
 
@@ -178,6 +180,7 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
     _challengeChannel?.unsubscribe();
     _presenceChannel?.unsubscribe();
     _friendsChannel?.unsubscribe();
+    PresenceService.goOffline();
     if (mounted) setState(() {});
   }
 
@@ -214,7 +217,7 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => _IncomingChallengeAlert(
+      builder: (ctx) => IncomingChallengeAlert(
         sessionId: sessionId,
         challengerId: challengerId,
         challengerName: name,
@@ -233,6 +236,7 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
 
     _fetchPlayers();
     _loadSocialData();
+    NotificationService.syncTokenToDatabase();
 
     showModalBottomSheet(
       context: context,
@@ -258,7 +262,7 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
             }
 
             return Container(
-              height: MediaQuery.of(ctx).size.height * 0.70,
+              height: (MediaQuery.of(ctx).size.height - MediaQuery.of(ctx).viewInsets.bottom) * 0.72,
               decoration: const BoxDecoration(
                 color: AppTheme.background,
                 borderRadius: BorderRadius.only(
@@ -491,16 +495,16 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                               Container(
                                 width: 8,
                                 height: 8,
-                                decoration: const BoxDecoration(
-                                  color: AppTheme.success,
+                                decoration: BoxDecoration(
+                                  color: player['presence_status'] == 'away' ? Colors.amber[800]! : AppTheme.success,
                                   shape: BoxShape.circle,
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                'En línea',
+                                player['presence_status'] == 'away' ? 'Ausente' : 'En línea',
                                 style: AppTheme.bodyMd.copyWith(
-                                  color: AppTheme.success,
+                                  color: player['presence_status'] == 'away' ? Colors.amber[800]! : AppTheme.success,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -648,7 +652,12 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
               final friendshipId = friend['friendship_id'] as String;
 
               // Check if friend is currently online
-              final isOnline = _onlinePlayers.any((p) => p['user_id'] == fid);
+              final onlineRecord = _onlinePlayers.firstWhere(
+                (p) => p['user_id'] == fid,
+                orElse: () => <String, dynamic>{},
+              );
+              final isOnline = onlineRecord.isNotEmpty;
+              final status = onlineRecord['presence_status'] as String? ?? (isOnline ? 'online' : 'offline');
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -684,15 +693,21 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                                 width: 8,
                                 height: 8,
                                 decoration: BoxDecoration(
-                                  color: isOnline ? AppTheme.success : Colors.grey,
+                                  color: isOnline
+                                      ? (status == 'away' ? Colors.amber[800]! : AppTheme.success)
+                                      : Colors.grey,
                                   shape: BoxShape.circle,
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                isOnline ? 'En línea' : 'Desconectado',
+                                isOnline
+                                    ? (status == 'away' ? 'Ausente' : 'En línea')
+                                    : 'Desconectado',
                                 style: AppTheme.bodyMd.copyWith(
-                                  color: isOnline ? AppTheme.success : Colors.grey,
+                                  color: isOnline
+                                      ? (status == 'away' ? Colors.amber[800]! : AppTheme.success)
+                                      : Colors.grey,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1187,92 +1202,4 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
   }
 }
 
-class _IncomingChallengeAlert extends StatelessWidget {
-  final String sessionId;
-  final String challengerId;
-  final String challengerName;
-
-  const _IncomingChallengeAlert({
-    required this.sessionId,
-    required this.challengerId,
-    required this.challengerName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: AppTheme.background,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusExtraLarge),
-        side: const BorderSide(color: AppTheme.primary, width: 2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Center(
-              child: Text('⚔️', style: TextStyle(fontSize: 52)),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '¡Desafío Recibido!',
-              textAlign: TextAlign.center,
-              style: AppTheme.headlineMd.copyWith(fontSize: 22),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '$challengerName te reta a un duelo de verbos en tiempo real. ¿Aceptas el combate?',
-              textAlign: TextAlign.center,
-              style: AppTheme.bodyMd.copyWith(color: AppTheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: TactileButton(
-                    text: 'Declinar',
-                    backgroundColor: Colors.white,
-                    textColor: AppTheme.error,
-                    darkColor: AppTheme.surfaceContainer,
-                    isSecondary: true,
-                    onTap: () {
-                      Navigator.pop(context);
-                      BattleService.cancelSession(sessionId);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TactileButton(
-                    text: '¡Pelear!',
-                    backgroundColor: AppTheme.primary,
-                    textColor: Colors.white,
-                    darkColor: AppTheme.primaryDark,
-                    onTap: () async {
-                      Navigator.pop(context);
-                      await BattleService.acceptChallenge(sessionId);
-                      final navCtx = appNavigatorKey.currentContext;
-                      if (navCtx == null || !navCtx.mounted) return;
-                      Navigator.push(
-                        navCtx,
-                        MaterialPageRoute(
-                          builder: (_) => BattleScreen(
-                            sessionId: sessionId,
-                            opponentId: challengerId,
-                            opponentName: challengerName,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// Local _IncomingChallengeAlert removed. Public class used instead.

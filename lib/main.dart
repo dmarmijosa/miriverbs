@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/notification_service.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
@@ -15,7 +16,9 @@ final appReady = ValueNotifier<bool>(false);
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   if (kDebugMode) {
     print("Handling background message: ${message.messageId}");
   }
@@ -32,17 +35,27 @@ void main() async {
 
   // Initialize Firebase Cloud Messaging
   try {
-    await Firebase.initializeApp();
+    if (kDebugMode) {
+      print('DEBUG: Initializing Firebase with options...');
+    }
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    if (kDebugMode) {
+      print('DEBUG: Firebase.initializeApp completed successfully.');
+    }
+    
+    if (kDebugMode) {
+      print('DEBUG: Setting onBackgroundMessage handler...');
+    }
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    
-    // Initialize Notification Service listeners
-    await NotificationService.initialize();
-    
-    // Request permission dynamically on launch
-    await NotificationService.requestPermissions();
-  } catch (e) {
+    if (kDebugMode) {
+      print('DEBUG: onBackgroundMessage handler set successfully.');
+    }
+  } catch (e, stackTrace) {
     if (kDebugMode) {
       print('Failed to initialize Firebase Messaging: $e');
+      print('Stack trace: $stackTrace');
     }
   }
 
@@ -68,6 +81,37 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _checkAuthState();
+    
+    // Initialize notifications asynchronously after the first frame is rendered to prevent blocking startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initNotifications();
+    });
+  }
+
+  Future<void> _initNotifications() async {
+    try {
+      if (kDebugMode) {
+        print('DEBUG: Initializing NotificationService asynchronously...');
+      }
+      await NotificationService.initialize();
+      if (kDebugMode) {
+        print('DEBUG: NotificationService initialized successfully.');
+      }
+      
+      // Request permission dynamically after rendering the first frame
+      if (kDebugMode) {
+        print('DEBUG: Requesting NotificationService permissions...');
+      }
+      await NotificationService.requestPermissions();
+      if (kDebugMode) {
+        print('DEBUG: NotificationService permissions requested.');
+      }
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('Failed to initialize Notification Service: $e');
+        print('Stack trace: $stackTrace');
+      }
+    }
   }
 
   void _checkAuthState() {

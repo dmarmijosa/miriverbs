@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BattleService {
@@ -23,9 +24,63 @@ class BattleService {
           })
           .select()
           .single();
+
+      // Enviar notificación push asíncronamente
+      _sendPushChallenge(
+        sessionId: rows['id'] as String,
+        challengerId: uid,
+        challengedId: challengedId,
+      );
+
       return rows;
     } catch (_) {
       return null;
+    }
+  }
+
+  static Future<void> _sendPushChallenge({
+    required String sessionId,
+    required String challengerId,
+    required String challengedId,
+  }) async {
+    try {
+      final challengerData = await _client
+          .from('profiles')
+          .select('full_name')
+          .eq('id', challengerId)
+          .maybeSingle();
+      final challengerName = challengerData?['full_name'] as String? ?? 'Un contrincante';
+
+      final challengedData = await _client
+          .from('profiles')
+          .select('push_token')
+          .eq('id', challengedId)
+          .maybeSingle();
+      final pushToken = challengedData?['push_token'] as String?;
+
+      if (pushToken != null && pushToken.isNotEmpty) {
+        final response = await _client.functions.invoke(
+          'send-push',
+          body: {
+            'push_token': pushToken,
+            'title': '⚔️ ¡Nuevo reto recibido!',
+            'body': '$challengerName te ha desafiado a una batalla de verbos.',
+            'data': {
+              'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+              'type': 'battle_challenge',
+              'session_id': sessionId,
+            },
+          },
+        );
+        if (kDebugMode) {
+          print('Push notification API response: status=${response.status}, data=${response.data}');
+        }
+      }
+    } catch (e, stack) {
+      if (kDebugMode) {
+        print('Error sending push challenge: $e');
+        print(stack);
+      }
     }
   }
 

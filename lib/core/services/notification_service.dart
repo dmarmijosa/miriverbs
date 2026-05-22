@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../main.dart' show appNavigatorKey;
+import '../../features/multiplayer/widgets/incoming_challenge_alert.dart';
 
 class NotificationService {
-  static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  static FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   static bool _initialized = false;
 
   /// Initialize Firebase Messaging configurations and stream listeners.
@@ -102,16 +105,25 @@ class NotificationService {
     }
   }
 
-  /// Get the current device push token.
+  /// Get the current device push token with automatic retries for APNs on iOS.
   static Future<String?> getToken() async {
     try {
-      // In iOS, retrieve the APNs token first to prevent FCM token fetching errors.
       if (Platform.isIOS) {
-        final apnsToken = await _messaging.getAPNSToken();
-        if (apnsToken == null) {
-          if (kDebugMode) {
-            print('APNs token is not available yet.');
+        int retries = 0;
+        String? apnsToken;
+        while (retries < 5) {
+          apnsToken = await _messaging.getAPNSToken();
+          if (apnsToken != null) {
+            if (kDebugMode) {
+              print('DEBUG: APNs token successfully retrieved.');
+            }
+            break;
           }
+          retries++;
+          if (kDebugMode) {
+            print('DEBUG: APNs token is not available yet. Retrying in 1 second (attempt $retries/5)...');
+          }
+          await Future.delayed(const Duration(seconds: 1));
         }
       }
 
@@ -122,6 +134,74 @@ class NotificationService {
         print('Error getting FCM token: $e');
       }
       return null;
+    }
+  }
+
+  /// Get the current device push token with step-by-step logging for diagnostics.
+  static Future<String?> getTokenDetailed({required Function(String) onLog}) async {
+    try {
+      onLog('Iniciando obtención de token...');
+      if (Platform.isIOS) {
+        onLog('Plataforma iOS detectada. Verificando APNs...');
+        int retries = 0;
+        String? apnsToken;
+        while (retries < 8) {
+          apnsToken = await _messaging.getAPNSToken();
+          if (apnsToken != null) {
+            onLog('APNs Token obtenido con éxito: $apnsToken');
+            break;
+          }
+          retries++;
+          onLog('APNs no disponible aún. Reintento $retries/8...');
+          await Future.delayed(const Duration(seconds: 1));
+        }
+        if (apnsToken == null) {
+          onLog('Advertencia: APNs Token sigue siendo NULL después de 8 reintentos.');
+        }
+      }
+
+      onLog('Solicitando FCM Token de Firebase...');
+      final fcmToken = await _messaging.getToken();
+      if (fcmToken != null) {
+        onLog('FCM Token obtenido con éxito.');
+      } else {
+        onLog('Error: El FCM Token devuelto por Firebase es NULL.');
+      }
+      return fcmToken;
+    } catch (e) {
+      onLog('Excepción al obtener token: $e');
+      return null;
+    }
+  }
+
+  /// Synchronize the active FCM device token with detailed step-by-step logging.
+  static Future<void> syncTokenToDatabaseDetailed({
+    required Function(String) onLog,
+    String? token,
+  }) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        onLog('Error: No hay usuario autenticado en Supabase.');
+        return;
+      }
+      onLog('Usuario autenticado encontrado: ${user.email ?? user.id}');
+
+      final activeToken = token ?? await getTokenDetailed(onLog: onLog);
+      if (activeToken == null) {
+        onLog('Error crítico: El token es NULL. Abortando actualización en Supabase.');
+        return;
+      }
+
+      onLog('Actualizando tabla profiles en Supabase...');
+      await Supabase.instance.client.from('profiles').update({
+        'push_token': activeToken,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', user.id);
+
+      onLog('¡Sincronización en Supabase completada con éxito!');
+    } catch (e) {
+      onLog('Excepción al sincronizar con Supabase: $e');
     }
   }
 
@@ -184,6 +264,26 @@ class NotificationService {
   static void _handleNotificationClick(RemoteMessage message) {
     if (kDebugMode) {
       print('Handling click for notification payload: ${message.data}');
+    }
+    try {
+      final data = message.data;
+      if (data['type'] == 'battle_challenge') {
+        final sessionId = data['session_id'] as String?;
+        final context = appNavigatorKey.currentContext;
+        if (context != null && sessionId != null) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => IncomingChallengeAlert(
+              sessionId: sessionId,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error handling notification click: $e');
+      }
     }
   }
 }
