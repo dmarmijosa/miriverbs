@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "899237516831",
+    "project_id": "myri-learn-nexacode-v2-32926",
+    "storage_bucket": "myri-learn-nexacode-v2-32926.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:899237516831:android:225f676252a0bde4fe672a",
+        "android_client_info": {
+          "package_name": "com.example.miriverbs"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "899237516831-obv923j5a7pd0tmd9kks61rco1l0tm96.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.miriverbs",
+            "certificate_hash": "66d67371e5c26648af6139a71c250d1ef5546719"
+          }
+        },
+        {
+          "client_id": "899237516831-4rnv2mv30vfm691sul0m85ks2inh7kep.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbydP6KEMMzIG2g0aHrYfnVmsirrdmmmo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "899237516831-4rnv2mv30vfm691sul0m85ks2inh7kep.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "899237516831-66oe40qb96ip0tm4pkkkio9h472io6nb.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.miriverbs"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
