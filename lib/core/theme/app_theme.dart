@@ -13,6 +13,7 @@ class AppTheme {
   static const Color tertiary = Color(0xFF2ECC71);         // Soft Mint Green
   static const Color tertiaryDark = Color(0xFF229954);     // Soft Mint Green Darker (for 3D edge)
   static const Color success = tertiary;
+  static const Color successDark = tertiaryDark;
 
   static const Color error = Color(0xFFBA1A1A);
   static const Color errorDark = Color(0xFF93000A);

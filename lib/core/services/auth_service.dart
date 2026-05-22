@@ -1,5 +1,6 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'notification_service.dart';
 
 // Google Web Client ID for OAuth identification
 const _googleWebClientId = '899237516831-4rnv2mv30vfm691sul0m85ks2inh7kep.apps.googleusercontent.com';
@@ -38,6 +39,7 @@ class AuthService {
       if (user == null) {
         return AuthResult.error('No se pudo crear la cuenta.');
       }
+      await NotificationService.syncTokenToDatabase();
       return AuthResult.ok(user);
     } on AuthException catch (e) {
       return AuthResult.error(_mapAuthError(e.message));
@@ -61,6 +63,7 @@ class AuthService {
       if (user == null) {
         return AuthResult.error('Credenciales incorrectas.');
       }
+      await NotificationService.syncTokenToDatabase();
       return AuthResult.ok(user);
     } on AuthException catch (e) {
       return AuthResult.error(_mapAuthError(e.message));
@@ -111,6 +114,7 @@ class AuthService {
         onConflict: 'id',
       );
 
+      await NotificationService.syncTokenToDatabase();
       return AuthResult.ok(user);
     } on AuthException catch (e) {
       return AuthResult.error(_mapAuthError(e.message));
@@ -144,6 +148,7 @@ class AuthService {
         );
       }
 
+      await NotificationService.syncTokenToDatabase();
       return AuthResult.ok(user);
     } on AuthException catch (e) {
       return AuthResult.error(_mapAuthError(e.message));
@@ -154,6 +159,7 @@ class AuthService {
 
   // ── Logout ────────────────────────────────────────────────────────────────
   static Future<void> logout() async {
+    await NotificationService.clearTokenFromDatabase();
     await _supabase.auth.signOut();
   }
 

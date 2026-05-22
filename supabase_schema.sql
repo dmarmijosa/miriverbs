@@ -13,6 +13,7 @@ create table if not exists public.profiles (
     id uuid references auth.users on delete cascade primary key,
     full_name text,
     avatar_url text,
+    push_token text,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -328,3 +329,39 @@ insert into public.verbs (infinitive, spanish, past_simple, past_participle, ger
 ('to mitigate', 'mitigar / atenuar', 'mitigated', 'mitigated', 'mitigating', 'Mitigate the risks of errors.', 'Mitiga los riesgos de errores.', 'advanced'),
 ('to excel', 'sobresalir / destacar', 'excelled', 'excelled', 'excelling', 'She excels in writing beautiful apps.', 'Ella sobresale en escribir hermosas apps.', 'advanced')
 on conflict (infinitive) do nothing;
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- FRIENDSHIPS SYSTEM
+-- ────────────────────────────────────────────────────────────────────────────
+create table if not exists public.friendships (
+    id uuid default gen_random_uuid() primary key,
+    sender_id uuid references public.profiles(id) on delete cascade not null,
+    receiver_id uuid references public.profiles(id) on delete cascade not null,
+    status text not null check (status in ('pending', 'accepted', 'declined')),
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    unique (sender_id, receiver_id)
+);
+
+-- Enable RLS
+alter table public.friendships enable row level security;
+
+-- Policies for friendships
+create policy "Users can view their own friendships"
+on public.friendships for select
+using (auth.uid() = sender_id or auth.uid() = receiver_id);
+
+create policy "Users can insert friendships"
+on public.friendships for insert
+with check (auth.uid() = sender_id);
+
+create policy "Users can update their received/sent friendships"
+on public.friendships for update
+using (auth.uid() = receiver_id or auth.uid() = sender_id);
+
+create policy "Users can delete their own friendships"
+on public.friendships for delete
+using (auth.uid() = sender_id or auth.uid() = receiver_id);
+
+-- Enable Realtime
+alter publication supabase_realtime add table public.friendships;
