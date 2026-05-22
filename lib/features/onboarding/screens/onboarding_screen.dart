@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/tactile_button.dart';
 import '../../../core/widgets/squishy_progress_bar.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../home/screens/presentation_video_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -25,80 +24,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     'Intenso (45 min/día)',
   ];
 
-  String _videoUrl = 'https://www.youtube.com/watch?v=7dxH6HGHa8I';
-  String? _videoId;
-  YoutubePlayerController? _youtubeController;
-  bool _loadingVideo = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _videoId = _extractVideoId(_videoUrl);
-    _youtubeController = YoutubePlayerController.fromVideoId(
-      videoId: _videoId!,
-      autoPlay: false,
-      params: const YoutubePlayerParams(
-        showControls: true,
-        showFullscreenButton: true,
-        mute: false,
-        playsInline: true,
-      ),
-    );
-    _loadingVideo = false;
-    _fetchVideoUrl();
-  }
-
-  String _extractVideoId(String url) {
-    try {
-      final uri = Uri.parse(url);
-      if (uri.host.contains('youtube.com')) {
-        final v = uri.queryParameters['v'];
-        if (v != null && v.isNotEmpty) return v;
-      } else if (uri.host.contains('youtu.be')) {
-        if (uri.pathSegments.isNotEmpty) return uri.pathSegments.first;
-      }
-    } catch (_) {}
-
-    final regExp = RegExp(
-      r'^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*',
-      caseSensitive: false,
-      multiLine: false,
-    );
-    final match = regExp.firstMatch(url);
-    if (match != null && match.groupCount >= 2) {
-      final id = match.group(2);
-      if (id != null && id.length == 11) return id;
-    }
-
-    return '7dxH6HGHa8I';
-  }
-
-  Future<void> _fetchVideoUrl() async {
-    try {
-      final response = await Supabase.instance.client
-          .from('app_configs')
-          .select('value')
-          .eq('key', 'presentation_video_url')
-          .maybeSingle();
-
-      if (response != null && response['value'] != null) {
-        final fetchedUrl = response['value'];
-        final newId = _extractVideoId(fetchedUrl);
-        if (newId != _videoId) {
-          _videoUrl = fetchedUrl;
-          _videoId = newId;
-          _youtubeController?.cueVideoById(videoId: _videoId!);
-        }
-      }
-    } catch (e) {
-      debugPrint('Error fetching video URL from Supabase: $e');
-    }
-  }
-
   @override
   void dispose() {
     _pageController.dispose();
-    _youtubeController?.close();
     super.dispose();
   }
 
@@ -115,10 +43,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _onPageChanged(int page) {
     setState(() => _currentPage = page);
-    // Pause video if navigating away from the video slide (index 1)
-    if (page != 1 && _youtubeController != null) {
-      _youtubeController!.pauseVideo();
-    }
   }
 
   void _finishOnboarding() {
@@ -141,7 +65,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Miriverbs',
+                    'Miri verbs',
                     style: AppTheme.headlineMd.copyWith(
                       color: AppTheme.primary,
                       fontWeight: FontWeight.w900,
@@ -243,7 +167,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          'Conoce Miriverbs 🎥',
+          'Conoce Miri verbs 🎥',
           textAlign: TextAlign.center,
           style: AppTheme.displayLg.copyWith(fontSize: 34),
         ),
@@ -256,27 +180,124 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         const SizedBox(height: 32),
         Expanded(
           child: Center(
-            child: _loadingVideo
-                ? const CircularProgressIndicator(color: AppTheme.primary)
-                : Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
-                        )
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: YoutubePlayer(
-                        controller: _youtubeController!,
-                      ),
-                    ),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const PresentationVideoScreen(),
+                    fullscreenDialog: true,
                   ),
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                constraints: const BoxConstraints(maxWidth: 400, maxHeight: 220),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF2C3E50),
+                      Color(0xFF0F2027),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primary.withValues(alpha: 0.2),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: AppTheme.primary.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge - 2),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Mascot watermark background
+                      Positioned.fill(
+                        child: Opacity(
+                          opacity: 0.08,
+                          child: Transform.scale(
+                            scale: 0.8,
+                            child: Image.asset(
+                              'assets/images/mascot_happy.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Modern Cinema overlay
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.65),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Play Button Container with beautiful premium border
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.25),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: const BoxDecoration(
+                                color: AppTheme.secondary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.play_arrow_rounded,
+                                color: AppTheme.onBackground,
+                                size: 36,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Reproducir Presentación 🎬',
+                            style: AppTheme.labelLg.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Toca para ver el video fullscreen',
+                            style: AppTheme.bodyMd.copyWith(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ],

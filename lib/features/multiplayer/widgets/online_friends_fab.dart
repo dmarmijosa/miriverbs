@@ -10,6 +10,7 @@ import '../../../main.dart' show appNavigatorKey, appReady;
 import '../screens/battle_screen.dart';
 import '../screens/waiting_challenge_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class OnlineFriendsFab extends StatefulWidget {
   const OnlineFriendsFab({super.key});
@@ -46,6 +47,16 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
 
   BuildContext? get _navCtx => appNavigatorKey.currentContext;
 
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  Future<void> _playSwordClash() async {
+    try {
+      await _audioPlayer.play(AssetSource('sounds/sword_clash.wav'));
+    } catch (e) {
+      debugPrint('Error playing sound: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -67,6 +78,7 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
     _challengeChannel?.unsubscribe();
     _presenceChannel?.unsubscribe();
     _friendsChannel?.unsubscribe();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -448,13 +460,11 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                     CircleAvatar(
                       radius: 20,
                       backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                      backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-                      child: avatarUrl.isEmpty
-                          ? Text(
-                              name.substring(0, 1).toUpperCase(),
-                              style: AppTheme.labelLg.copyWith(color: AppTheme.primary),
-                            )
-                          : null,
+                      backgroundImage: avatarUrl.isNotEmpty
+                          ? (avatarUrl.startsWith('http')
+                              ? NetworkImage(avatarUrl)
+                              : AssetImage(avatarUrl) as ImageProvider)
+                          : const AssetImage('assets/images/mascot_happy.png') as ImageProvider,
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -546,17 +556,17 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                       ),
 
                     const SizedBox(width: 6),
-                    SizedBox(
+                    TactileButton(
+                      text: 'Retar ⚔️',
+                      height: 32,
                       width: 90,
-                      height: 36,
-                      child: TactileButton(
-                        text: 'Retar ⚔️',
-                        backgroundColor: AppTheme.secondary,
-                        darkColor: AppTheme.secondaryDark,
-                        textColor: AppTheme.onBackground,
-                        fontSize: 12,
-                        onTap: () async {
-                          Navigator.pop(sheetCtx); // Close sheet
+                      backgroundColor: AppTheme.secondary,
+                      darkColor: AppTheme.secondaryDark,
+                      textColor: AppTheme.onBackground,
+                      fontSize: 11,
+                      onTap: () async {
+                        _playSwordClash();
+                        Navigator.pop(sheetCtx); // Close sheet
                           FeedbackToast.showSuccess(
                             sheetCtx,
                             title: 'Enviando desafío',
@@ -585,7 +595,6 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                           }
                         },
                       ),
-                    ),
                   ],
                 ),
               );
@@ -654,13 +663,11 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                     CircleAvatar(
                       radius: 20,
                       backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                      backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-                      child: avatarUrl.isEmpty
-                          ? Text(
-                              name.substring(0, 1).toUpperCase(),
-                              style: AppTheme.labelLg.copyWith(color: AppTheme.primary),
-                            )
-                          : null,
+                      backgroundImage: avatarUrl.isNotEmpty
+                          ? (avatarUrl.startsWith('http')
+                              ? NetworkImage(avatarUrl)
+                              : AssetImage(avatarUrl) as ImageProvider)
+                          : const AssetImage('assets/images/mascot_happy.png') as ImageProvider,
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -735,17 +742,17 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
 
                     if (isOnline) ...[
                       const SizedBox(width: 6),
-                      SizedBox(
+                      TactileButton(
+                        text: 'Retar ⚔️',
+                        height: 32,
                         width: 90,
-                        height: 36,
-                        child: TactileButton(
-                          text: 'Retar ⚔️',
-                          backgroundColor: AppTheme.secondary,
-                          darkColor: AppTheme.secondaryDark,
-                          textColor: AppTheme.onBackground,
-                          fontSize: 12,
-                          onTap: () async {
-                            Navigator.pop(sheetCtx); // Close sheet
+                        backgroundColor: AppTheme.secondary,
+                        darkColor: AppTheme.secondaryDark,
+                        textColor: AppTheme.onBackground,
+                        fontSize: 11,
+                        onTap: () async {
+                          _playSwordClash();
+                          Navigator.pop(sheetCtx); // Close sheet
                             FeedbackToast.showSuccess(
                               sheetCtx,
                               title: 'Enviando desafío',
@@ -774,8 +781,7 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                             }
                           },
                         ),
-                      ),
-                    ],
+                      ],
                   ],
                 ),
               );
@@ -893,13 +899,11 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
               CircleAvatar(
                 radius: 20,
                 backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-                child: avatarUrl.isEmpty
-                    ? Text(
-                        name.substring(0, 1).toUpperCase(),
-                        style: AppTheme.labelLg.copyWith(color: AppTheme.primary),
-                      )
-                    : null,
+                backgroundImage: avatarUrl.isNotEmpty
+                    ? (avatarUrl.startsWith('http')
+                        ? NetworkImage(avatarUrl)
+                        : AssetImage(avatarUrl) as ImageProvider)
+                    : const AssetImage('assets/images/mascot_happy.png') as ImageProvider,
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1068,13 +1072,11 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                     CircleAvatar(
                       radius: 20,
                       backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                      backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-                      child: avatarUrl.isEmpty
-                          ? Text(
-                              name.substring(0, 1).toUpperCase(),
-                              style: AppTheme.labelLg.copyWith(color: AppTheme.primary),
-                            )
-                          : null,
+                      backgroundImage: avatarUrl.isNotEmpty
+                          ? (avatarUrl.startsWith('http')
+                              ? NetworkImage(avatarUrl)
+                              : AssetImage(avatarUrl) as ImageProvider)
+                          : const AssetImage('assets/images/mascot_happy.png') as ImageProvider,
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1105,7 +1107,7 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                         },
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     
                     // accept button
                     SizedBox(

@@ -1,4 +1,4 @@
-package com.example.miriverbs
+package com.nexacode.miriverbs
 
 import io.flutter.embedding.android.FlutterActivity
 

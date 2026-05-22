@@ -103,6 +103,129 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showAvatarPicker(BuildContext context) {
+    final avatars = [
+      {'name': 'Miri Feliz', 'path': 'assets/images/mascot_happy.png'},
+      {'name': 'Miri Celebrando', 'path': 'assets/images/mascot_celebrating.png'},
+      {'name': 'Miri Triste', 'path': 'assets/images/mascot_sad.png'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppTheme.background,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(24),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.outline.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Elige tu Avatar 🦉',
+                  style: AppTheme.headlineMd.copyWith(fontSize: 20),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Selecciona uno de los avatares oficiales para tu perfil',
+                  style: AppTheme.bodyMd.copyWith(color: AppTheme.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: avatars.map((avatar) {
+                    final isSelected = _profile?['avatar_url'] == avatar['path'];
+                    return GestureDetector(
+                      onTap: () async {
+                        Navigator.pop(sheetCtx);
+                        FeedbackToast.showSuccess(
+                          context,
+                          title: 'Actualizando avatar',
+                          message: 'Guardando tu nuevo avatar...',
+                        );
+                        final success = await AuthService.updateAvatar(avatar['path']!);
+                        if (success) {
+                          await _loadProfile();
+                        } else {
+                          if (context.mounted) {
+                            FeedbackToast.showError(
+                              context,
+                              title: 'Error',
+                              message: 'No se pudo actualizar el avatar.',
+                            );
+                          }
+                        }
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected ? AppTheme.primary : Colors.transparent,
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: 40,
+                              backgroundColor: const Color(0xFFE8EFFF),
+                              backgroundImage: AssetImage(avatar['path']!),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            avatar['name']!,
+                            style: AppTheme.labelLg.copyWith(
+                              color: isSelected ? AppTheme.primary : AppTheme.onBackground,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final String name = _profile?['full_name'] ?? AuthService.currentUser?.email?.split('@').first ?? 'Estudiante';
@@ -134,16 +257,37 @@ class _HomeScreenState extends State<HomeScreen> {
                   // ── Header Profile Area ────────────────────────────────────
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 26,
-                        backgroundColor: const Color(0xFFE8EFFF),
-                        backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-                        child: avatarUrl.isEmpty
-                            ? Text(
-                                name.substring(0, 1).toUpperCase(),
-                                style: AppTheme.headlineMd.copyWith(color: AppTheme.primary),
-                              )
-                            : null,
+                      GestureDetector(
+                        onTap: () => _showAvatarPicker(context),
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 26,
+                              backgroundColor: const Color(0xFFE8EFFF),
+                              backgroundImage: avatarUrl.isNotEmpty
+                                  ? (avatarUrl.startsWith('http')
+                                      ? NetworkImage(avatarUrl)
+                                      : AssetImage(avatarUrl) as ImageProvider)
+                                  : const AssetImage('assets/images/mascot_happy.png') as ImageProvider,
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: const BoxDecoration(
+                                  color: AppTheme.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.edit_rounded,
+                                  size: 10,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -417,6 +561,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const PresentationVideoScreen(),
+        fullscreenDialog: true,
       ),
     );
   }

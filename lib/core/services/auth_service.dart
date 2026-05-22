@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'notification_service.dart';
 
 // Google Web Client ID for OAuth identification
-const _googleWebClientId = '899237516831-4rnv2mv30vfm691sul0m85ks2inh7kep.apps.googleusercontent.com';
+const _googleWebClientId = '481557558534-5ptcs4ltl5sbohj95cdv7boirs2ore9f.apps.googleusercontent.com';
 
 class AuthResult {
   final bool success;
@@ -75,7 +77,10 @@ class AuthService {
   // ── Login with Google ─────────────────────────────────────────────────────
   static Future<AuthResult> loginWithGoogle() async {
     try {
-      final googleSignIn = GoogleSignIn(serverClientId: _googleWebClientId);
+      final googleSignIn = GoogleSignIn(
+        clientId: Platform.isIOS ? '481557558534-2fpuem13he1i1em1hcvkvm82qrglclj5.apps.googleusercontent.com' : null,
+        serverClientId: _googleWebClientId,
+      );
       final googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
@@ -124,17 +129,36 @@ class AuthService {
   }
 
   // ── Login with Apple ──────────────────────────────────────────────────────
-  static Future<AuthResult> loginWithApple({required String idToken, String? accessToken, String? fullName}) async {
+  static Future<AuthResult> loginWithApple() async {
     try {
+      final rawCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final idToken = rawCredential.identityToken;
+      if (idToken == null) {
+        return AuthResult.error('No se pudo obtener el Token de Identidad de Apple.');
+      }
+
       final response = await _supabase.auth.signInWithIdToken(
         provider: OAuthProvider.apple,
         idToken: idToken,
-        accessToken: accessToken,
+        accessToken: rawCredential.authorizationCode,
       );
 
       final user = response.user;
       if (user == null) {
         return AuthResult.error('No se pudo iniciar sesión con Apple.');
+      }
+
+      final givenName = rawCredential.givenName;
+      final familyName = rawCredential.familyName;
+      String? fullName;
+      if (givenName != null || familyName != null) {
+        fullName = '${givenName ?? ''} ${familyName ?? ''}'.trim();
       }
 
       if (fullName != null && fullName.isNotEmpty) {
@@ -150,6 +174,11 @@ class AuthService {
 
       await NotificationService.syncTokenToDatabase();
       return AuthResult.ok(user);
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        return AuthResult.error('Inicio de sesión cancelado.');
+      }
+      return AuthResult.error('Error de Apple: ${e.message}');
     } on AuthException catch (e) {
       return AuthResult.error(_mapAuthError(e.message));
     } catch (e) {
@@ -179,6 +208,18 @@ class AuthService {
       return data;
     } catch (_) {
       return null;
+    }
+  }
+
+  // ── Update User Avatar ────────────────────────────────────────────────────
+  static Future<bool> updateAvatar(String avatarUrl) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return false;
+      await _supabase.from('profiles').update({'avatar_url': avatarUrl}).eq('id', user.id);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

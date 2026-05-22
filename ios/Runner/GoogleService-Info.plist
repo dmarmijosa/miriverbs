@@ -3,23 +3,21 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>899237516831-66oe40qb96ip0tm4pkkkio9h472io6nb.apps.googleusercontent.com</string>
+	<string>481557558534-2fpuem13he1i1em1hcvkvm82qrglclj5.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.899237516831-66oe40qb96ip0tm4pkkkio9h472io6nb</string>
-	<key>ANDROID_CLIENT_ID</key>
-	<string>899237516831-v83dj2ngptmk50euov71nma435c3resg.apps.googleusercontent.com</string>
+	<string>com.googleusercontent.apps.481557558534-2fpuem13he1i1em1hcvkvm82qrglclj5</string>
 	<key>API_KEY</key>
-	<string>AIzaSyC8I8UpdK3vBOshnL90oz4GaucI-38XxqQ</string>
+	<string>AIzaSyC3da1gKA8ZGXbHXC1VVk0BhMdM5FjCmVo</string>
 	<key>GCM_SENDER_ID</key>
-	<string>899237516831</string>
+	<string>481557558534</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.miriverbs</string>
+	<string>com.nexacode.miriverbs</string>
 	<key>PROJECT_ID</key>
-	<string>myri-learn-nexacode-v2-32926</string>
+	<string>miri-verbs</string>
 	<key>STORAGE_BUCKET</key>
-	<string>myri-learn-nexacode-v2-32926.firebasestorage.app</string>
+	<string>miri-verbs.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -31,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:899237516831:ios:36356b168701ed58fe672a</string>
+	<string>1:481557558534:ios:05936c8cf97c0d0e32da87</string>
 </dict>
 </plist>

@@ -121,7 +121,7 @@ class _PresentationVideoScreenState extends State<PresentationVideoScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 constraints: const BoxConstraints(maxWidth: 720),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                  color: Colors.black, // Dark background to prevent any white flashes
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.5),
@@ -130,7 +130,6 @@ class _PresentationVideoScreenState extends State<PresentationVideoScreen> {
                     )
                   ],
                 ),
-                clipBehavior: Clip.antiAlias,
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
                   child: _isLoading

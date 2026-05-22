@@ -1,48 +1,48 @@
 {
   "project_info": {
-    "project_number": "899237516831",
-    "project_id": "myri-learn-nexacode-v2-32926",
-    "storage_bucket": "myri-learn-nexacode-v2-32926.firebasestorage.app"
+    "project_number": "481557558534",
+    "project_id": "miri-verbs",
+    "storage_bucket": "miri-verbs.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:899237516831:android:225f676252a0bde4fe672a",
+        "mobilesdk_app_id": "1:481557558534:android:4adff657fb95c9af32da87",
         "android_client_info": {
-          "package_name": "com.example.miriverbs"
+          "package_name": "com.nexacode.miriverbs"
         }
       },
       "oauth_client": [
         {
-          "client_id": "899237516831-obv923j5a7pd0tmd9kks61rco1l0tm96.apps.googleusercontent.com",
+          "client_id": "481557558534-r23a693sg7qqceaf6uerkd6p84cv78vi.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.miriverbs",
+            "package_name": "com.nexacode.miriverbs",
             "certificate_hash": "66d67371e5c26648af6139a71c250d1ef5546719"
           }
         },
         {
-          "client_id": "899237516831-4rnv2mv30vfm691sul0m85ks2inh7kep.apps.googleusercontent.com",
+          "client_id": "481557558534-5ptcs4ltl5sbohj95cdv7boirs2ore9f.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBbydP6KEMMzIG2g0aHrYfnVmsirrdmmmo"
+          "current_key": "AIzaSyCWSUcCeQvs_83JQwsrnw-2CLUMvavcvP8"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "899237516831-4rnv2mv30vfm691sul0m85ks2inh7kep.apps.googleusercontent.com",
+              "client_id": "481557558534-5ptcs4ltl5sbohj95cdv7boirs2ore9f.apps.googleusercontent.com",
               "client_type": 3
             },
             {
-              "client_id": "899237516831-66oe40qb96ip0tm4pkkkio9h472io6nb.apps.googleusercontent.com",
+              "client_id": "481557558534-2fpuem13he1i1em1hcvkvm82qrglclj5.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.miriverbs"
+                "bundle_id": "com.nexacode.miriverbs"
               }
             }
           ]

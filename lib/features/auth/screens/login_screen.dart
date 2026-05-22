@@ -74,19 +74,28 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Future<void> _signInWithApple() async {
     setState(() => _isLoading = true);
-    // Simulate Apple login delay and trigger success for experience validation
-    await Future.delayed(const Duration(milliseconds: 1200));
+    final result = await AuthService.loginWithApple();
     setState(() => _isLoading = false);
 
-    if (mounted) {
-      FeedbackToast.showSuccess(
-        context,
-        title: '¡Sesión con Apple!',
-        message: 'Iniciaste sesión con Apple correctamente (Simulado).',
-      );
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+    if (result.success) {
+      if (mounted) {
+        FeedbackToast.showSuccess(
+          context,
+          title: '¡Sesión con Apple!',
+          message: 'Iniciaste sesión con Apple correctamente.',
+        );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    } else {
+      if (mounted) {
+        FeedbackToast.showError(
+          context,
+          title: 'Error de Apple',
+          message: result.errorMessage ?? 'No se pudo completar el inicio de sesión.',
+        );
+      }
     }
   }
 
