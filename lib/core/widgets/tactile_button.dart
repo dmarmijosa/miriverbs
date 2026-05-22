@@ -61,8 +61,16 @@ class _TactileButtonState extends State<TactileButton> {
     final double depth = 4.0;
 
     Color bg = widget.isSecondary ? AppTheme.surface : widget.backgroundColor;
-    Color borderBg = widget.isSecondary ? AppTheme.surfaceContainer : widget.darkColor;
-    Color txtColor = widget.isSecondary ? AppTheme.primary : widget.textColor;
+    Color borderBg = widget.isSecondary
+        ? (widget.darkColor != AppTheme.primaryDark ? widget.darkColor : AppTheme.outline)
+        : widget.darkColor;
+    Color txtColor = widget.isSecondary
+        ? (widget.textColor != Colors.white ? widget.textColor : AppTheme.primary)
+        : widget.textColor;
+
+    Color borderColor = widget.isSecondary
+        ? (isDisabled ? AppTheme.surfaceDim : AppTheme.outline)
+        : Colors.transparent;
 
     if (isDisabled) {
       bg = AppTheme.surfaceContainer;
@@ -89,9 +97,6 @@ class _TactileButtonState extends State<TactileButton> {
                 decoration: BoxDecoration(
                   color: borderBg,
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                  border: widget.isSecondary
-                      ? Border.all(color: AppTheme.outline.withValues(alpha: 0.5), width: 1.5)
-                      : null,
                 ),
               ),
             ),
@@ -108,9 +113,9 @@ class _TactileButtonState extends State<TactileButton> {
                   color: bg,
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                   border: widget.isSecondary
-                      ? Border.all(color: AppTheme.outline, width: 2)
+                      ? Border.all(color: borderColor, width: 2)
                       : null,
-                  boxShadow: _isPressed || isDisabled
+                  boxShadow: _isPressed || isDisabled || widget.isSecondary
                       ? null
                       : [
                           BoxShadow(

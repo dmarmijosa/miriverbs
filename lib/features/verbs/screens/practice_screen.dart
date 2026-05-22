@@ -5,15 +5,21 @@ import '../../../core/data/syllabus_data.dart';
 import '../../../core/widgets/tactile_button.dart';
 import '../../../core/widgets/squishy_progress_bar.dart';
 import '../../../core/widgets/feedback_toast.dart';
+import '../../../core/services/progress_service.dart';
+import '../../multiplayer/widgets/online_friends_fab.dart';
 
 class PracticeScreen extends StatefulWidget {
   final List<VerbModel> verbs;
   final String levelName;
+  final String? levelCode;
+  final int? subLevel;
 
   const PracticeScreen({
     super.key,
     required this.verbs,
     required this.levelName,
+    this.levelCode,
+    this.subLevel,
   });
 
   @override
@@ -30,7 +36,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
   @override
   void initState() {
     super.initState();
+    OnlineFriendsFab.isVisible.value = false;
     _generateQuiz();
+  }
+
+  @override
+  void dispose() {
+    OnlineFriendsFab.isVisible.value = true;
+    super.dispose();
   }
 
   void _generateQuiz() {
@@ -39,7 +52,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
     // Shuffle verbs to have random items
     final shuffledVerbs = List<VerbModel>.from(widget.verbs)..shuffle();
-    final quizLength = min(5, shuffledVerbs.length);
+    final quizLength = min(10, shuffledVerbs.length);
 
     for (int i = 0; i < quizLength; i++) {
       final verb = shuffledVerbs[i];
@@ -52,26 +65,45 @@ class _PracticeScreenState extends State<PracticeScreen> {
       if (type == 0) {
         questionText = '¿Cuál es el significado de "${verb.infinitive}"?';
         correctAnswer = verb.spanish;
-        options.add(correctAnswer);
+        final uniqueOptions = <String>{correctAnswer};
 
-        // Fetch 3 decoy options
         final decoys = SyllabusData.verbs
             .where((v) => v.spanish != correctAnswer)
             .map((v) => v.spanish)
             .toList()
           ..shuffle();
-        options.addAll(decoys.take(3));
+
+        for (final decoy in decoys) {
+          if (uniqueOptions.length >= 4) break;
+          uniqueOptions.add(decoy);
+        }
+
+        while (uniqueOptions.length < 4) {
+          final fallbackDecoy = SyllabusData.verbs[rand.nextInt(SyllabusData.verbs.length)].spanish;
+          uniqueOptions.add(fallbackDecoy);
+        }
+        options = uniqueOptions.toList();
       } else if (type == 1) {
         questionText = '¿Cuál es el pasado simple de "${verb.infinitive}"?';
         correctAnswer = verb.pastSimple;
-        options.add(correctAnswer);
+        final uniqueOptions = <String>{correctAnswer};
 
         final decoys = SyllabusData.verbs
             .where((v) => v.pastSimple != correctAnswer)
             .map((v) => v.pastSimple)
             .toList()
           ..shuffle();
-        options.addAll(decoys.take(3));
+
+        for (final decoy in decoys) {
+          if (uniqueOptions.length >= 4) break;
+          uniqueOptions.add(decoy);
+        }
+
+        while (uniqueOptions.length < 4) {
+          final fallbackDecoy = SyllabusData.verbs[rand.nextInt(SyllabusData.verbs.length)].pastSimple;
+          uniqueOptions.add(fallbackDecoy);
+        }
+        options = uniqueOptions.toList();
       } else {
         // Example fill in blank
         final blankEn = verb.exampleEn.replaceAll(
@@ -97,14 +129,35 @@ class _PracticeScreenState extends State<PracticeScreen> {
           correctAnswer = base;
         }
 
-        options.add(correctAnswer);
+        final uniqueOptions = <String>{correctAnswer};
         final decoys = [
           verb.infinitive.replaceAll("to ", ""),
           verb.pastSimple,
           verb.pastParticiple,
           verb.gerund,
         ]..remove(correctAnswer);
-        options.addAll(decoys);
+
+        for (final decoy in decoys) {
+          if (uniqueOptions.length >= 4) break;
+          uniqueOptions.add(decoy);
+        }
+
+        while (uniqueOptions.length < 4) {
+          final randomVerb = SyllabusData.verbs[rand.nextInt(SyllabusData.verbs.length)];
+          final formIndex = rand.nextInt(4);
+          String fallbackDecoy;
+          if (formIndex == 0) {
+            fallbackDecoy = randomVerb.infinitive.replaceAll("to ", "");
+          } else if (formIndex == 1) {
+            fallbackDecoy = randomVerb.pastSimple;
+          } else if (formIndex == 2) {
+            fallbackDecoy = randomVerb.pastParticiple;
+          } else {
+            fallbackDecoy = randomVerb.gerund;
+          }
+          uniqueOptions.add(fallbackDecoy);
+        }
+        options = uniqueOptions.toList();
       }
 
       options.shuffle();
@@ -114,6 +167,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
         'correct': correctAnswer,
         'options': options,
         'verb': verb,
+        'isFirstAttempt': true,
+        'isReview': false,
       });
     }
   }
@@ -123,11 +178,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
     final question = _questions[_currentIndex];
     final isCorrect = _selectedOption == question['correct'];
+    final bool isFirstAttempt = question['isFirstAttempt'] ?? true;
 
     setState(() {
       _isAnswered = true;
       if (isCorrect) {
-        _score++;
+        if (isFirstAttempt) {
+          _score++;
+        }
         FeedbackToast.showSuccess(
           context,
           title: '¡Respuesta Correcta! 🌟',
@@ -139,11 +197,20 @@ class _PracticeScreenState extends State<PracticeScreen> {
           title: 'Incorrecto ❌',
           message: 'La respuesta correcta era: ${question['correct']}',
         );
+
+        // Re-enqueue the failed question to the end of the list for review!
+        _questions.add({
+          ...question,
+          'isFirstAttempt': false,
+          'isReview': true,
+          // Re-shuffle choices to challenge the user again
+          'options': List<String>.from(question['options'])..shuffle(),
+        });
       }
     });
   }
 
-  void _next() {
+  Future<void> _next() async {
     if (_currentIndex < _questions.length - 1) {
       setState(() {
         _currentIndex++;
@@ -151,11 +218,20 @@ class _PracticeScreenState extends State<PracticeScreen> {
         _isAnswered = false;
       });
     } else {
+      if (widget.levelCode != null && widget.subLevel != null) {
+        await ProgressService.completePractice(
+          levelCode: widget.levelCode!,
+          subLevel: widget.subLevel!,
+          score: _score,
+          isCompleted: _score >= 8,
+        );
+      }
       _showResultDialog();
     }
   }
 
   void _showResultDialog() {
+    final passed = _score >= 8;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -163,23 +239,31 @@ class _PracticeScreenState extends State<PracticeScreen> {
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusXLarge)),
         title: Text(
-          '¡Práctica Completada! 🎉',
+          passed ? '¡Subnivel Superado! 🎉' : '¡Práctica Completada! 💪',
           textAlign: TextAlign.center,
-          style: AppTheme.headlineMd.copyWith(color: AppTheme.primary),
+          style: AppTheme.headlineMd.copyWith(color: passed ? AppTheme.primary : AppTheme.secondaryDark),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🏆', style: TextStyle(fontSize: 64)),
+            Image.asset(
+              passed ? 'assets/images/mascot_celebrating.png' : 'assets/images/mascot_sad.png',
+              height: 150,
+              width: 150,
+              fit: BoxFit.contain,
+            ),
             const SizedBox(height: 16),
             Text(
-              'Tu puntuación fue:',
+              passed
+                  ? '¡Excelente! Has aprobado y superado este subnivel.'
+                  : 'Has obtenido $_score de ${_questions.length} aciertos. Necesitas al menos 8 para superar este subnivel.',
+              textAlign: TextAlign.center,
               style: AppTheme.bodyLg,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               '$_score / ${_questions.length}',
-              style: AppTheme.displayLg.copyWith(color: AppTheme.secondaryDark),
+              style: AppTheme.displayLg.copyWith(color: passed ? AppTheme.tertiaryDark : AppTheme.error),
             ),
           ],
         ),
@@ -250,22 +334,59 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
               // ── Question Box ───────────────────────────────────────────────
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                    border: Border.all(color: AppTheme.surfaceContainer, width: 1.5),
-                  ),
-                  child: Center(
-                    child: SingleChildScrollView(
-                      child: Text(
-                        questionText,
-                        textAlign: TextAlign.center,
-                        style: AppTheme.headlineMd.copyWith(fontSize: 22, height: 1.4),
+                child: Column(
+                  children: [
+                    if (question['isReview'] == true) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF9E6),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                          border: Border.all(color: const Color(0xFFFFD166), width: 1.5),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.replay_circle_filled_rounded,
+                              color: Color(0xFFD68F00),
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Repaso: ¡Habías fallado este verbo anteriormente!',
+                                style: AppTheme.bodyMd.copyWith(
+                                  color: const Color(0xFF8A5C00),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                          border: Border.all(color: AppTheme.surfaceContainer, width: 1.5),
+                        ),
+                        child: Center(
+                          child: SingleChildScrollView(
+                            child: Text(
+                              questionText,
+                              textAlign: TextAlign.center,
+                              style: AppTheme.headlineMd.copyWith(fontSize: 22, height: 1.4),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
               const SizedBox(height: 32),

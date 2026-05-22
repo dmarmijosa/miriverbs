@@ -167,30 +167,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           children: [
                             const Spacer(),
 
-                            // ── Branding Section ──────────────────────────────────
+                            // ── Branding Mascot ──────────────────────────────────
                             Center(
-                              child: Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(32),
-                                  border: Border.all(
-                                    color: AppTheme.surfaceDim.withValues(alpha: 0.5),
-                                    width: 2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppTheme.primary.withValues(alpha: 0.08),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.school_rounded,
-                                  size: 72,
-                                  color: AppTheme.primary,
-                                ),
+                              child: Image.asset(
+                                'assets/images/mascot_happy.png',
+                                height: 160,
+                                width: 160,
+                                fit: BoxFit.contain,
                               ),
                             ),
                             const SizedBox(height: 28),

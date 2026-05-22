@@ -125,37 +125,45 @@ class _BattleScreenState extends State<BattleScreen> with SingleTickerProviderSt
       if (type == 0) {
         questionText = '¿Cuál es el significado de "${verb.infinitive}"?';
         correctAnswer = verb.spanish;
-        options.add(correctAnswer);
+        final uniqueOptions = <String>{correctAnswer};
 
         final decoys = pool
             .where((v) => v.spanish != correctAnswer)
             .map((v) => v.spanish)
-            .toList();
+            .toList()
+          ..shuffle();
         
-        final selectedDecoys = <String>[];
-        final copyDecoys = List<String>.from(decoys);
-        while (selectedDecoys.length < 3 && copyDecoys.isNotEmpty) {
-          final idx = rand.nextInt(copyDecoys.length);
-          selectedDecoys.add(copyDecoys.removeAt(idx));
+        for (final decoy in decoys) {
+          if (uniqueOptions.length >= 4) break;
+          uniqueOptions.add(decoy);
         }
-        options.addAll(selectedDecoys);
+
+        while (uniqueOptions.length < 4) {
+          final fallbackDecoy = SyllabusData.verbs[rand.nextInt(SyllabusData.verbs.length)].spanish;
+          uniqueOptions.add(fallbackDecoy);
+        }
+        options = uniqueOptions.toList();
       } else if (type == 1) {
         questionText = '¿Cuál es el pasado simple de "${verb.infinitive}"?';
         correctAnswer = verb.pastSimple;
-        options.add(correctAnswer);
+        final uniqueOptions = <String>{correctAnswer};
 
         final decoys = pool
             .where((v) => v.pastSimple != correctAnswer)
             .map((v) => v.pastSimple)
-            .toList();
+            .toList()
+          ..shuffle();
         
-        final selectedDecoys = <String>[];
-        final copyDecoys = List<String>.from(decoys);
-        while (selectedDecoys.length < 3 && copyDecoys.isNotEmpty) {
-          final idx = rand.nextInt(copyDecoys.length);
-          selectedDecoys.add(copyDecoys.removeAt(idx));
+        for (final decoy in decoys) {
+          if (uniqueOptions.length >= 4) break;
+          uniqueOptions.add(decoy);
         }
-        options.addAll(selectedDecoys);
+
+        while (uniqueOptions.length < 4) {
+          final fallbackDecoy = SyllabusData.verbs[rand.nextInt(SyllabusData.verbs.length)].pastSimple;
+          uniqueOptions.add(fallbackDecoy);
+        }
+        options = uniqueOptions.toList();
       } else {
         // Fill in the blank
         final blankEn = verb.exampleEn.replaceAll(
@@ -180,14 +188,35 @@ class _BattleScreenState extends State<BattleScreen> with SingleTickerProviderSt
           correctAnswer = base;
         }
 
-        options.add(correctAnswer);
+        final uniqueOptions = <String>{correctAnswer};
         final decoys = [
           verb.infinitive.replaceAll("to ", ""),
           verb.pastSimple,
           verb.pastParticiple,
           verb.gerund,
         ]..remove(correctAnswer);
-        options.addAll(decoys);
+
+        for (final decoy in decoys) {
+          if (uniqueOptions.length >= 4) break;
+          uniqueOptions.add(decoy);
+        }
+
+        while (uniqueOptions.length < 4) {
+          final randomVerb = SyllabusData.verbs[rand.nextInt(SyllabusData.verbs.length)];
+          final formIndex = rand.nextInt(4);
+          String fallbackDecoy;
+          if (formIndex == 0) {
+            fallbackDecoy = randomVerb.infinitive.replaceAll("to ", "");
+          } else if (formIndex == 1) {
+            fallbackDecoy = randomVerb.pastSimple;
+          } else if (formIndex == 2) {
+            fallbackDecoy = randomVerb.pastParticiple;
+          } else {
+            fallbackDecoy = randomVerb.gerund;
+          }
+          uniqueOptions.add(fallbackDecoy);
+        }
+        options = uniqueOptions.toList();
       }
 
       // Seeded shuffle of options

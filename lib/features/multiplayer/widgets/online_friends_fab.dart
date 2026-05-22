@@ -14,6 +14,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class OnlineFriendsFab extends StatefulWidget {
   const OnlineFriendsFab({super.key});
 
+  static final ValueNotifier<bool> isVisible = ValueNotifier<bool>(true);
+
   @override
   State<OnlineFriendsFab> createState() => _OnlineFriendsFabState();
 }
@@ -319,7 +321,8 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
           },
         );
       },
-    ).then((_) {
+    ).then((_) async {
+      await Future.delayed(const Duration(milliseconds: 300));
       if (mounted) {
         setState(() {
           _isSheetOpen = false;
@@ -1140,37 +1143,44 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
 
   @override
   Widget build(BuildContext context) {
-    // Hide button if not logged in, or if onboarding is active
-    if (!_loggedIn || !appReady.value) return const SizedBox.shrink();
+    return ValueListenableBuilder<bool>(
+      valueListenable: OnlineFriendsFab.isVisible,
+      builder: (context, visible, child) {
+        // Hide button if not logged in, or if onboarding is active, or if sheet is open, or if explicitly hidden
+        if (!visible || _isSheetOpen || !_loggedIn || !appReady.value) {
+          return const SizedBox.shrink();
+        }
 
-    return Positioned(
-      bottom: 24,
-      right: 20,
-      child: AnimatedBuilder(
-        animation: _pulseAnim,
-        builder: (context, child) {
-          final scale = 1.0 + (_pulseAnim.value * 0.05);
-          return Transform.scale(
-            scale: scale,
-            child: child,
-          );
-        },
-        child: FloatingActionButton.extended(
-          onPressed: _openPlayersSheet,
-          elevation: 6,
-          backgroundColor: AppTheme.primary,
-          label: Row(
-            children: [
-              const Icon(Icons.bolt_rounded, color: AppTheme.secondary, size: 24),
-              const SizedBox(width: 6),
-              Text(
-                'Arena ${_onlinePlayers.isNotEmpty ? '(${_onlinePlayers.length})' : ''}',
-                style: AppTheme.labelLg.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
+        return Positioned(
+          bottom: 24,
+          right: 20,
+          child: AnimatedBuilder(
+            animation: _pulseAnim,
+            builder: (context, child) {
+              final scale = 1.0 + (_pulseAnim.value * 0.05);
+              return Transform.scale(
+                scale: scale,
+                child: child,
+              );
+            },
+            child: FloatingActionButton.extended(
+              onPressed: _openPlayersSheet,
+              elevation: 6,
+              backgroundColor: AppTheme.primary,
+              label: Row(
+                children: [
+                  const Icon(Icons.bolt_rounded, color: AppTheme.secondary, size: 24),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Arena ${_onlinePlayers.isNotEmpty ? '(${_onlinePlayers.length})' : ''}',
+                    style: AppTheme.labelLg.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

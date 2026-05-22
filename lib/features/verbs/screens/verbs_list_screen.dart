@@ -4,6 +4,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/data/syllabus_data.dart';
 import '../../../core/widgets/tactile_button.dart';
 import '../../../core/widgets/feedback_toast.dart';
+import '../../../core/services/progress_service.dart';
+import '../../multiplayer/widgets/online_friends_fab.dart';
 import 'practice_screen.dart';
 
 class VerbsListScreen extends StatefulWidget {
@@ -25,11 +27,56 @@ class _VerbsListScreenState extends State<VerbsListScreen> {
   List<VerbModel> _filteredVerbs = [];
   String _searchQuery = '';
   bool _isLoading = true;
+  int _selectedSublevel = 1;
+  List<Map<String, dynamic>> _completedProgress = [];
 
   @override
   void initState() {
     super.initState();
     _fetchVerbsFromDatabase();
+    _loadProgress();
+  }
+
+  Future<void> _loadProgress() async {
+    final progress = await ProgressService.fetchSublevelProgress();
+    if (mounted) {
+      setState(() {
+        _completedProgress = progress;
+
+        // Auto-focus on the first unlocked sublevel that is incomplete, or default to highest unlocked
+        int activeSublevel = 1;
+        for (int s = 1; s <= 6; s++) {
+          final isUnlocked = ProgressService.isSublevelUnlocked(
+            levelCode: widget.levelCode,
+            subLevel: s,
+            completedSublevels: progress,
+          );
+          if (isUnlocked) {
+            activeSublevel = s;
+            // Stop at the first incomplete unlocked sublevel (this is their active study target)
+            final isCompleted = progress.any((p) =>
+                p['level_code'].toString().toLowerCase() == widget.levelCode.toLowerCase() &&
+                p['sub_level'] == s &&
+                p['is_completed'] == true);
+            if (!isCompleted) {
+              break;
+            }
+          } else {
+            break; // subsequent ones are locked
+          }
+        }
+        _selectedSublevel = activeSublevel;
+        _filterVerbs();
+      });
+    }
+  }
+
+
+  bool _isSublevelCompleted(int subLevel) {
+    return _completedProgress.any((p) =>
+        p['level_code'].toString().toLowerCase() == widget.levelCode.toLowerCase() &&
+        p['sub_level'] == subLevel &&
+        p['is_completed'] == true);
   }
 
   Future<void> _fetchVerbsFromDatabase() async {
@@ -98,17 +145,131 @@ class _VerbsListScreenState extends State<VerbsListScreen> {
   }
 
   void _filterVerbs() {
-    final baseList = _dbVerbs;
+    // 1. Sort verbs alphabetically to ensure symmetric online/offline sublevel assignment
+    final sortedVerbs = List<VerbModel>.from(_dbVerbs)
+      ..sort((a, b) => a.infinitive.toLowerCase().compareTo(b.infinitive.toLowerCase()));
+
+    // 2. Select 10 verbs for the selected sublevel
+    final subLevelVerbs = sortedVerbs
+        .skip((_selectedSublevel - 1) * 10)
+        .take(10)
+        .toList();
 
     if (_searchQuery.isEmpty) {
-      _filteredVerbs = baseList;
+      _filteredVerbs = subLevelVerbs;
     } else {
-      _filteredVerbs = baseList
+      _filteredVerbs = subLevelVerbs
           .where((v) =>
               v.infinitive.toLowerCase().contains(_searchQuery.toLowerCase()) ||
               v.spanish.toLowerCase().contains(_searchQuery.toLowerCase()))
           .toList();
     }
+  }
+
+  Widget _buildSublevelSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Text(
+            'Subniveles de Aprendizaje',
+            style: AppTheme.labelLg.copyWith(fontSize: 15, color: AppTheme.onBackground),
+          ),
+        ),
+        SizedBox(
+          height: 52,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: 6,
+            itemBuilder: (context, index) {
+              final subLevelNum = index + 1;
+              final isSelected = _selectedSublevel == subLevelNum;
+              final isCompleted = _isSublevelCompleted(subLevelNum);
+              final isUnlocked = ProgressService.isSublevelUnlocked(
+                levelCode: widget.levelCode,
+                subLevel: subLevelNum,
+                completedSublevels: _completedProgress,
+              );
+
+              return GestureDetector(
+                onTap: isUnlocked
+                    ? () {
+                        setState(() {
+                          _selectedSublevel = subLevelNum;
+                          _filterVerbs();
+                        });
+                      }
+                    : () {
+                        FeedbackToast.showWarning(
+                          context,
+                          title: 'Subnivel Bloqueado 🔒',
+                          message: 'Completa el subnivel anterior para poder acceder.',
+                        );
+                      },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(right: 12, bottom: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppTheme.primary
+                        : (isUnlocked ? AppTheme.surface : AppTheme.surface.withValues(alpha: 0.5)),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppTheme.primary
+                          : (isUnlocked ? AppTheme.surfaceContainer : AppTheme.surfaceContainer.withValues(alpha: 0.5)),
+                      width: 1.5,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppTheme.primary.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            )
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isCompleted) ...[
+                        const Icon(
+                          Icons.workspace_premium_rounded,
+                          color: Color(0xFFFFD700), // Gold badge
+                          size: 20,
+                        ),
+                        const SizedBox(width: 6),
+                      ] else if (!isUnlocked) ...[
+                        const Icon(
+                          Icons.lock_outline_rounded,
+                          color: AppTheme.outline,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        'Subnivel $subLevelNum',
+                        style: AppTheme.labelLg.copyWith(
+                          color: isSelected
+                              ? Colors.white
+                              : (isUnlocked ? AppTheme.onBackground : AppTheme.onBackground.withValues(alpha: 0.5)),
+                          fontSize: 14,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -165,23 +326,40 @@ class _VerbsListScreenState extends State<VerbsListScreen> {
               ),
               const SizedBox(height: 20),
 
+              // ── Sublevel Selector ──────────────────────────────────────────
+              _buildSublevelSelector(),
+              const SizedBox(height: 20),
+
               // ── Practice Button ────────────────────────────────────────────
               TactileButton(
-                text: '🎯 Practicar estos verbos',
+                text: '🎯 Practicar subnivel $_selectedSublevel',
                 backgroundColor: AppTheme.secondary,
                 darkColor: AppTheme.secondaryDark,
                 textColor: AppTheme.onBackground,
                 onTap: _isLoading || _filteredVerbs.isEmpty
                     ? null
                     : () {
+                        // Get all 10 verbs of the current sublevel for practice
+                        final sortedVerbs = List<VerbModel>.from(_dbVerbs)
+                          ..sort((a, b) => a.infinitive.toLowerCase().compareTo(b.infinitive.toLowerCase()));
+                        final subLevelVerbs = sortedVerbs
+                            .skip((_selectedSublevel - 1) * 10)
+                            .take(10)
+                            .toList();
+
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => PracticeScreen(
-                              verbs: _filteredVerbs,
-                              levelName: widget.title,
+                              verbs: subLevelVerbs,
+                              levelName: '${widget.title} - Subnivel $_selectedSublevel',
+                              levelCode: widget.levelCode,
+                              subLevel: _selectedSublevel,
                             ),
                           ),
-                        );
+                        ).then((_) {
+                          // Refresh progress when returning from practice
+                          _loadProgress();
+                        });
                       },
               ),
               const SizedBox(height: 20),
@@ -305,6 +483,7 @@ class _VerbsListScreenState extends State<VerbsListScreen> {
   }
 
   void _showVerbDetails(VerbModel verb) {
+    OnlineFriendsFab.isVisible.value = false;
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.surface,
@@ -382,7 +561,10 @@ class _VerbsListScreenState extends State<VerbsListScreen> {
           ],
         ),
       ),
-    );
+    ).then((_) async {
+      await Future.delayed(const Duration(milliseconds: 300));
+      OnlineFriendsFab.isVisible.value = true;
+    });
   }
 
   Widget _detailTenseCol(String label, String value) {
