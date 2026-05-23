@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart' show appNavigatorKey;
 import '../../features/multiplayer/widgets/incoming_challenge_alert.dart';
@@ -9,6 +10,7 @@ import '../../features/multiplayer/widgets/incoming_challenge_alert.dart';
 class NotificationService {
   static FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   static bool _initialized = false;
+  static const MethodChannel _badgeChannel = MethodChannel('com.nexacode.miriverbs/badge');
 
   /// Initialize Firebase Messaging configurations and stream listeners.
   static Future<void> initialize() async {
@@ -64,6 +66,9 @@ class NotificationService {
       if (kDebugMode) {
         print('NotificationService successfully initialized.');
       }
+      
+      // Proactively clear badge and tray notifications on cold start
+      await clearBadgeAndNotifications();
     } catch (e) {
       if (kDebugMode) {
         print('Error initializing NotificationService: $e');
@@ -271,6 +276,21 @@ class NotificationService {
     } catch (e) {
       if (kDebugMode) {
         print('Error clearing push token from Supabase: $e');
+      }
+    }
+  }
+
+  /// Clear any active badges and remove all delivered notifications from the notification tray.
+  static Future<void> clearBadgeAndNotifications() async {
+    if (!Platform.isIOS) return;
+    try {
+      await _badgeChannel.invokeMethod('clearBadge');
+      if (kDebugMode) {
+        print('Successfully cleared notification badge and tray via platform channel.');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error clearing badge/notifications: $e');
       }
     }
   }
