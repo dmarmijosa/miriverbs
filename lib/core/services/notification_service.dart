@@ -187,6 +187,15 @@ class NotificationService {
       }
       onLog('Usuario autenticado encontrado: ${user.email ?? user.id}');
 
+      onLog('Comprobando permisos de notificaciones push...');
+      final settings = await _messaging.getNotificationSettings();
+      onLog('Estado de permisos: ${settings.authorizationStatus}');
+      if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+        onLog('Permiso no determinado. Solicitando al usuario...');
+        final granted = await requestPermissions();
+        onLog('Resultado de solicitud de permisos: $granted');
+      }
+
       final activeToken = token ?? await getTokenDetailed(onLog: onLog);
       if (activeToken == null) {
         onLog('Error crítico: El token es NULL. Abortando actualización en Supabase.');
@@ -214,6 +223,12 @@ class NotificationService {
           print('Cannot sync push token: No user is currently authenticated.');
         }
         return;
+      }
+
+      // Check and request push permissions if not determined yet on iOS/Android
+      final settings = await _messaging.getNotificationSettings();
+      if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+        await requestPermissions();
       }
 
       final activeToken = token ?? await getToken();

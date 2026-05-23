@@ -973,28 +973,26 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                   ),
                 )
               else if (status == 'pending_received')
-                SizedBox(
-                  width: 100,
-                  height: 34,
-                  child: TactileButton(
-                    text: 'Aceptar 👍',
-                    backgroundColor: AppTheme.success,
-                    textColor: Colors.white,
-                    darkColor: AppTheme.successDark,
-                    fontSize: 12,
-                    onTap: () async {
-                      final ok = await FriendService.acceptFriendRequest(friendshipId);
-                      if (!sheetCtx.mounted) return;
-                      if (ok) {
-                        FeedbackToast.showSuccess(
-                          sheetCtx,
-                          title: '¡Amigos agregados!',
-                          message: 'Ahora eres amigo de $name.',
-                        );
-                        await refresh();
-                      }
-                    },
-                  ),
+                TactileButton(
+                  text: 'Aceptar 👍',
+                  height: 32,
+                  width: 90,
+                  backgroundColor: AppTheme.success,
+                  textColor: Colors.white,
+                  darkColor: AppTheme.successDark,
+                  fontSize: 11,
+                  onTap: () async {
+                    final ok = await FriendService.acceptFriendRequest(friendshipId);
+                    if (!sheetCtx.mounted) return;
+                    if (ok) {
+                      FeedbackToast.showSuccess(
+                        sheetCtx,
+                        title: '¡Amigos agregados!',
+                        message: 'Ahora eres amigo de $name.',
+                      );
+                      await refresh();
+                    }
+                  },
                 )
               else if (status == 'accepted')
                 Row(
@@ -1125,28 +1123,26 @@ class _OnlineFriendsFabState extends State<OnlineFriendsFab>
                     const SizedBox(width: 6),
                     
                     // accept button
-                    SizedBox(
+                    TactileButton(
+                      text: 'Aceptar 👍',
+                      height: 32,
                       width: 90,
-                      height: 34,
-                      child: TactileButton(
-                        text: 'Aceptar 👍',
-                        backgroundColor: AppTheme.success,
-                        textColor: Colors.white,
-                        darkColor: AppTheme.successDark,
-                        fontSize: 12,
-                        onTap: () async {
-                          final ok = await FriendService.acceptFriendRequest(friendshipId);
-                          if (!sheetCtx.mounted) return;
-                          if (ok) {
-                            FeedbackToast.showSuccess(
-                              sheetCtx,
-                              title: '¡Amigos agregados!',
-                              message: 'Ahora eres amigo de $name.',
-                            );
-                            await refresh();
-                          }
-                        },
-                      ),
+                      backgroundColor: AppTheme.success,
+                      textColor: Colors.white,
+                      darkColor: AppTheme.successDark,
+                      fontSize: 11,
+                      onTap: () async {
+                        final ok = await FriendService.acceptFriendRequest(friendshipId);
+                        if (!sheetCtx.mounted) return;
+                        if (ok) {
+                          FeedbackToast.showSuccess(
+                            sheetCtx,
+                            title: '¡Amigos agregados!',
+                            message: 'Ahora eres amigo de $name.',
+                          );
+                          await refresh();
+                        }
+                      },
                     ),
                   ],
                 ),

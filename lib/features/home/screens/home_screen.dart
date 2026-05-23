@@ -18,13 +18,19 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  /// Map containing user profile information (e.g., full_name, avatar_url, streak_days, last_practice_date)
   Map<String, dynamic>? _profile;
+
+  /// List of completed progressive sublevels from user_sublevel_progress table in Supabase
   List<Map<String, dynamic>> _completedProgress = [];
+
+  /// The visual name of the Teacher's TikTok account, sourced dynamically from Supabase
   String _tiktokName = 'Teacher Miryan❤️👩‍🏫💻';
+
+  /// The web URL of the Teacher's TikTok account, sourced dynamically from Supabase
   String _tiktokUrl = 'https://www.tiktok.com/@miryanyanez16';
 
-
-
+  /// Predefined static curriculum map outlining learning units, difficulty levels, descriptions, colors, and badges
   final List<Map<String, dynamic>> _units = [
     {
       'title': 'Unidad 1: Básico Principiante A1',
@@ -79,9 +85,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Cold load the active profile and study progress on startup
     _loadProfile();
   }
 
+  /// Queries the active student profile, CEFR progress, and dynamic TikTok configs from Supabase.
+  /// Refreshes the local widget state to render correct badges, streaks, and brand URLs.
   Future<void> _loadProfile() async {
     final data = await AuthService.getProfile();
     final progress = await ProgressService.fetchSublevelProgress();
@@ -114,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Triggers a secure URL launch redirecting the user to the Teacher's TikTok profile in external app/browser.
   Future<void> _launchTikTok() async {
     try {
       final uri = Uri.parse(_tiktokUrl);
@@ -139,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Signs the user out from Supabase Auth and navigates back to the SSO login screen.
   Future<void> _logout() async {
     await AuthService.logout();
     if (mounted) {
@@ -153,6 +164,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Displays an interactive, glassmorphic bottom sheet letting users choose a premium Mascot character as their avatar.
+  /// Updates profile details in Supabase database instantly upon selection.
+  /// 
+  /// @param context - Standard build routing context.
   void _showAvatarPicker(BuildContext context) {
     final avatars = [
       {'name': 'Miri Feliz', 'path': 'assets/images/mascot_happy.png'},
