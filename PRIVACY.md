@@ -38,5 +38,5 @@ Toda tu información está protegida mediante reglas de seguridad de bases de da
 
 Tienes derecho a acceder, rectificar o solicitar la eliminación definitiva de tu cuenta y todos tus datos asociados en cualquier momento. Para ejercer estos derechos, o si tienes alguna duda sobre esta política, puedes contactarnos enviando un correo electrónico a tu dirección de soporte o abriendo una solicitud en nuestro canal oficial.
 
-*   **Contacto de Soporte:** [dmarmijosa@gmail.com](mailto:dmarmijosa@gmail.com)
+*   **Contacto de Soporte:** [dmarmijosa2667@gmail.com](mailto:dmarmijosa2667@gmail.com)
 *   **Repositorio del Proyecto:** [https://github.com/dmarmijosa/miriverbs](https://github.com/dmarmijosa/miriverbs)
