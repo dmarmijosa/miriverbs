@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/tactile_button.dart';
@@ -257,16 +258,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 isSecondary: true,
                                 onTap: _signInWithGoogle,
                               ),
-                              const SizedBox(height: 16),
-                              // Apple SSO
-                              TactileButton(
-                                text: 'Continuar con Apple',
-                                icon: Icons.apple_rounded,
-                                backgroundColor: Colors.black,
-                                textColor: Colors.white,
-                                darkColor: const Color(0xFF222222),
-                                onTap: _signInWithApple,
-                              ),
+                              if (Platform.isIOS) ...[
+                                const SizedBox(height: 16),
+                                // Apple SSO
+                                TactileButton(
+                                  text: 'Continuar con Apple',
+                                  icon: Icons.apple_rounded,
+                                  backgroundColor: Colors.black,
+                                  textColor: Colors.white,
+                                  darkColor: const Color(0xFF222222),
+                                  onTap: _signInWithApple,
+                                ),
+                              ],
                             ],
 
                             const SizedBox(height: 24),

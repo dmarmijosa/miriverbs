@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:showcaseview/showcaseview.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/squishy_progress_bar.dart';
 import '../../../core/widgets/feedback_toast.dart';
@@ -18,6 +20,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final GlobalKey _keyStreak = GlobalKey();
+  final GlobalKey _keyTikTok = GlobalKey();
+  final GlobalKey _keyUnit = GlobalKey();
+
   /// Map containing user profile information (e.g., full_name, avatar_url, streak_days, last_practice_date)
   Map<String, dynamic>? _profile;
 
@@ -120,6 +126,31 @@ class _HomeScreenState extends State<HomeScreen> {
         _profile = data;
         _completedProgress = progress;
       });
+      _startShowcaseIfNeeded();
+    }
+  }
+
+  void _startShowcaseIfNeeded() async {
+    final userId = AuthService.currentUser?.id;
+    if (userId == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final bool done = prefs.getBool('showcase_done_v1_$userId') ?? false;
+    if (!done) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (mounted) {
+              ShowCaseWidget.of(context).startShowCase([
+                _keyStreak,
+                _keyTikTok,
+                _keyUnit,
+              ]);
+              prefs.setBool('showcase_done_v1_$userId', true);
+            }
+          });
+        });
+      }
     }
   }
 
@@ -308,12 +339,14 @@ class _HomeScreenState extends State<HomeScreen> {
         : 'Completa cualquier subnivel hoy para mantener tu racha.';
     final double streakProgress = hasPracticedToday ? 1.0 : 0.0;
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: SingleChildScrollView(
+    return ShowCaseWidget(
+      builder: (context) {
+        return Scaffold(
+            backgroundColor: AppTheme.background,
+            body: Stack(
+              children: [
+                SafeArea(
+                  child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
@@ -395,44 +428,51 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 24),
 
                   // ── Daily Goals Progress Card ──────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surface,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                      border: Border.all(color: AppTheme.surfaceContainer, width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Racha de estudio 🔥',
-                              style: AppTheme.labelLg.copyWith(fontSize: 16),
-                            ),
-                            Text(
-                              streakText,
-                              style: AppTheme.labelLg.copyWith(color: AppTheme.secondaryDark),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        SquishyProgressBar(value: streakProgress),
-                        const SizedBox(height: 12),
-                        Text(
-                          subText,
-                          style: AppTheme.bodyMd.copyWith(color: AppTheme.onSurfaceVariant, fontSize: 13),
-                        ),
-                      ],
+                  Showcase(
+                    key: _keyStreak,
+                    title: 'Racha de estudio 🔥',
+                    description: 'Completa cualquier subnivel cada día para mantener tu racha activa.',
+                    textColor: AppTheme.primary,
+                    targetPadding: const EdgeInsets.all(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                        border: Border.all(color: AppTheme.surfaceContainer, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Racha de estudio 🔥',
+                                style: AppTheme.labelLg.copyWith(fontSize: 16),
+                              ),
+                              Text(
+                                streakText,
+                                style: AppTheme.labelLg.copyWith(color: AppTheme.secondaryDark),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          SquishyProgressBar(value: streakProgress),
+                          const SizedBox(height: 12),
+                          Text(
+                            subText,
+                            style: AppTheme.bodyMd.copyWith(color: AppTheme.onSurfaceVariant, fontSize: 13),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -505,64 +545,71 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 16),
 
                   // ── TikTok Social Card ─────────────────────────────────────
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppTheme.surface,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                      border: Border.all(color: AppTheme.surfaceContainer, width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
+                  Showcase(
+                    key: _keyTikTok,
+                    title: 'Videos de Teacher Miryan 🎵',
+                    description: '¡Aprende inglés de forma súper divertida con lecciones cortas y dinámicas en TikTok!',
+                    textColor: AppTheme.primary,
+                    targetPadding: const EdgeInsets.all(8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface,
                         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                        onTap: _launchTikTok,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFF2F2F2),
-                                  shape: BoxShape.circle,
+                        border: Border.all(color: AppTheme.surfaceContainer, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                          onTap: _launchTikTok,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFF2F2F2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Text(
+                                    '🎵',
+                                    style: TextStyle(fontSize: 20),
+                                  ),
                                 ),
-                                child: const Text(
-                                  '🎵',
-                                  style: TextStyle(fontSize: 20),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _tiktokName,
-                                      style: AppTheme.labelLg.copyWith(fontSize: 15),
-                                    ),
-                                    Text(
-                                      '¡Aprende inglés con los mejores videos de TikTok!',
-                                      style: AppTheme.bodyMd.copyWith(
-                                        color: AppTheme.onSurfaceVariant,
-                                        fontSize: 11,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _tiktokName,
+                                        style: AppTheme.labelLg.copyWith(fontSize: 15),
                                       ),
-                                    ),
-                                  ],
+                                      Text(
+                                        '¡Aprende inglés con los mejores videos de TikTok!',
+                                        style: AppTheme.bodyMd.copyWith(
+                                          color: AppTheme.onSurfaceVariant,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: AppTheme.outline,
-                                size: 16,
-                              ),
-                            ],
+                                const Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: AppTheme.outline,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -593,7 +640,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       completedSublevels: _completedProgress,
                     );
 
-                    return Card(
+                    final Widget cardWidget = Card(
                       margin: const EdgeInsets.only(bottom: 16),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -694,7 +741,269 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     );
+
+                    if (levelCode == 'a1') {
+                      return Showcase(
+                        key: _keyUnit,
+                        title: 'Tu Ruta de Aprendizaje 📚',
+                        description: 'Toca una unidad desbloqueada para ver la lista de verbos y empezar a practicar.',
+                        textColor: AppTheme.primary,
+                        targetPadding: const EdgeInsets.all(4),
+                        child: cardWidget,
+                      );
+                    }
+                    return cardWidget;
                   }),
+
+                  const SizedBox(height: 32),
+                  const Divider(color: AppTheme.surfaceContainer, thickness: 1.5),
+                  const SizedBox(height: 16),
+                  
+                  // Footer section
+                  Column(
+                    children: [
+                      Text(
+                        'Miri Verbs © ${DateTime.now().year} • Nexacode',
+                        style: AppTheme.bodyMd.copyWith(
+                          color: AppTheme.outline,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: _showPrivacyPolicyModal,
+                        child: Text(
+                          'Política de Privacidad',
+                          style: AppTheme.labelLg.copyWith(
+                            color: AppTheme.primary,
+                            fontSize: 12,
+                            decoration: TextDecoration.underline,
+                            decorationColor: AppTheme.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  },
+);
+}
+
+  void _showVideoPresentationScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const PresentationVideoScreen(),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
+  void _showPrivacyPolicyModal() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: AppTheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            side: const BorderSide(color: AppTheme.surfaceContainer, width: 1.5),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 550, maxHeight: 600),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.shield_outlined,
+                          color: AppTheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Política de Privacidad',
+                              style: AppTheme.headlineMd.copyWith(fontSize: 16),
+                            ),
+                            Text(
+                              'Miri Verbs • Actualizado ${DateTime.now().year}',
+                              style: AppTheme.bodyMd.copyWith(
+                                color: AppTheme.onSurfaceVariant,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: AppTheme.outline, size: 20),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(color: AppTheme.surfaceContainer, thickness: 1),
+                  const SizedBox(height: 12),
+
+                  // Content Scroll View
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'En Miri Verbs (desarrollada por Danny Armijos / Nexacode), nos tomamos muy en serio tu privacidad. Esta política de privacidad describe cómo recopilamos, utilizamos y protegemos la información personal cuando utilizas nuestra aplicación móvil.',
+                            style: AppTheme.bodyMd.copyWith(fontSize: 12, height: 1.4),
+                          ),
+                          const SizedBox(height: 14),
+                          
+                          _buildSectionTitle('1. Información que Recopilamos'),
+                          _buildBulletPoint('Información de Registro:', 'Tu dirección de correo electrónico y tu nombre o apodo que elijas para tu perfil para identificar tu cuenta.'),
+                          _buildBulletPoint('Identificadores Únicos:', 'Un ID de usuario cifrado generado por nuestro sistema de base de datos de Supabase y el token de notificaciones push de tu dispositivo móvil.'),
+                          _buildBulletPoint('Datos de Diagnóstico (Anónimos):', 'Registros de fallos y rendimiento (Firebase Crashlytics) para solucionar problemas de programación y garantizar la estabilidad de la app.'),
+                          const SizedBox(height: 14),
+
+                          _buildSectionTitle('2. Cómo Utilizámos tus Datos'),
+                          _buildBulletPoint('Funcionalidad de la App:', 'Autenticar tu cuenta, guardar tu progreso en la lista de verbos, gestionar tus puntuaciones y emparejarte en batallas en tiempo real en la Arena PvP.'),
+                          _buildBulletPoint('Notificaciones Push:', 'Enviar alertas de desafíos PvP en tiempo real a tu dispositivo utilizando el identificador de dispositivo para asegurar que los retos te lleguen al instante.'),
+                          _buildBulletPoint('Soporte y Estabilidad:', 'Analizar errores técnicos de manera totalmente anónima.'),
+                          const SizedBox(height: 14),
+
+                          _buildSectionTitle('3. Compartición y Venta de Datos'),
+                          Text(
+                            'Miri Verbs no vende, alquila ni comparte tus datos personales con terceros con fines comerciales o publicitarios.',
+                            style: AppTheme.bodyMd.copyWith(fontSize: 12, height: 1.4),
+                          ),
+                          const SizedBox(height: 14),
+
+                          _buildSectionTitle('4. Eliminación de Cuentas y Datos'),
+                          Text(
+                            'Creemos firmemente en la soberanía de los datos. Tienes derecho a solicitar la eliminación permanente de tu cuenta y todos tus progresos, rachas y copas PvP en cualquier momento de forma instantánea.',
+                            style: AppTheme.bodyMd.copyWith(fontSize: 12, height: 1.4),
+                          ),
+                          const SizedBox(height: 12),
+                          
+                          // Clickable delete account action
+                          InkWell(
+                            onTap: () {
+                              Navigator.of(context).pop(); // Close modal first
+                              _deleteAccountNatively();
+                            },
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.error.withValues(alpha: 0.08),
+                                border: Border.all(color: AppTheme.error.withValues(alpha: 0.15), width: 1),
+                                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                              ),
+                              child: Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  const Icon(Icons.delete_forever_rounded, color: AppTheme.error, size: 16),
+                                  Text(
+                                    'Solicitar Eliminación de Cuenta 🗑️',
+                                    style: AppTheme.labelLg.copyWith(color: AppTheme.error, fontSize: 12),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+                  const Divider(color: AppTheme.surfaceContainer, thickness: 1),
+                  const SizedBox(height: 12),
+
+                  // Close button
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Entendido',
+                      style: AppTheme.labelLg.copyWith(color: Colors.white, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        title,
+        style: AppTheme.labelLg.copyWith(fontSize: 13, color: AppTheme.primary),
+      ),
+    );
+  }
+
+  Widget _buildBulletPoint(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5, left: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 5),
+            child: Icon(Icons.circle, size: 4, color: AppTheme.outline),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: AppTheme.bodyMd.copyWith(fontSize: 11, color: AppTheme.onSurfaceVariant, height: 1.3),
+                children: [
+                  TextSpan(
+                    text: '$label ',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onBackground),
+                  ),
+                  TextSpan(text: value),
                 ],
               ),
             ),
@@ -704,12 +1013,94 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showVideoPresentationScreen() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const PresentationVideoScreen(),
-        fullscreenDialog: true,
-      ),
+
+
+  void _deleteAccountNatively() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppTheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            side: const BorderSide(color: AppTheme.surfaceContainer, width: 1.5),
+          ),
+          title: Text(
+            '¿Eliminar cuenta para siempre? ⚠️',
+            style: AppTheme.headlineMd.copyWith(fontSize: 18, color: AppTheme.error),
+          ),
+          content: Text(
+            'Esta acción es definitiva e irreversible. Borrará de inmediato todo tu progreso, copas PvP, rachas de estudio y tu perfil de Miri Verbs. No podrás recuperar tus datos de ninguna manera.',
+            style: AppTheme.bodyMd.copyWith(fontSize: 13, color: AppTheme.onSurfaceVariant),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Cancelar',
+                style: AppTheme.labelLg.copyWith(color: AppTheme.outline),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop(); // Close confirmation dialog
+                
+                // Show loading progress overlay
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(color: AppTheme.primary),
+                  ),
+                );
+
+                try {
+                  // Call the SECURITY DEFINER postgres function to delete the current user
+                  await Supabase.instance.client.rpc('delete_current_user');
+                  
+                  // Logout
+                  await AuthService.logout();
+
+                  if (mounted) {
+                    Navigator.of(context).pop(); // Close progress dialog
+                    FeedbackToast.showSuccess(
+                      context,
+                      title: 'Cuenta Eliminada 🗑️',
+                      message: 'Tu cuenta y todos tus datos han sido borrados de producción.',
+                    );
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    Navigator.of(context).pop(); // Close progress dialog
+                    FeedbackToast.showWarning(
+                      context,
+                      title: 'Error de Eliminación ⚠️',
+                      message: 'No se pudo procesar la eliminación. Inténtalo de nuevo más tarde.',
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                'Sí, eliminar para siempre',
+                style: AppTheme.labelLg.copyWith(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
     );
-  }}
+  }
+}
 
