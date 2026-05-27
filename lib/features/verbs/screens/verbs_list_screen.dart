@@ -289,11 +289,14 @@ class _VerbsListScreenState extends State<VerbsListScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 650),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
               const SizedBox(height: 12),
               // ── Search field ───────────────────────────────────────────────
               TextField(
@@ -458,8 +461,10 @@ class _VerbsListScreenState extends State<VerbsListScreen> {
                               );
                             },
                           ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

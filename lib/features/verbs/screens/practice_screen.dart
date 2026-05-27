@@ -309,11 +309,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 650),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
               // ── Progress indicator ─────────────────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -486,9 +489,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 textColor: _isAnswered ? Colors.white : AppTheme.onBackground,
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
+          ), // Column
+        ), // Padding
+      ), // ConstrainedBox
+    ), // Center
+  ), // SafeArea
+); // Scaffold
+}
 }

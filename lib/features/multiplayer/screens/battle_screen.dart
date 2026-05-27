@@ -650,11 +650,14 @@ class _BattleScreenState extends State<BattleScreen> with SingleTickerProviderSt
           ],
         ),
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 650),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                 // Realtime user status tracker
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -790,12 +793,14 @@ class _BattleScreenState extends State<BattleScreen> with SingleTickerProviderSt
                   textColor: _isAnswered ? Colors.white : AppTheme.onBackground,
                 ),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+            ), // Column
+          ), // Padding
+        ), // ConstrainedBox
+      ), // Center
+    ), // SafeArea
+  ), // Scaffold
+); // PopScope
+}
 
   Widget _buildResolutionScreen() {
     final myId = Supabase.instance.client.auth.currentUser?.id;
@@ -833,11 +838,14 @@ class _BattleScreenState extends State<BattleScreen> with SingleTickerProviderSt
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 650),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
               const SizedBox(height: 24),
               // Stunning outcome badge
               Center(
@@ -982,6 +990,8 @@ class _BattleScreenState extends State<BattleScreen> with SingleTickerProviderSt
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

@@ -158,26 +158,27 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _launchTikTok() async {
     try {
       final uri = Uri.parse(_tiktokUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          FeedbackToast.showError(
-            context,
-            title: 'Error de enlace',
-            message: 'No se pudo abrir la cuenta de TikTok.',
-          );
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        final launchedFallback = await launchUrl(uri, mode: LaunchMode.platformDefault);
+        if (!launchedFallback && mounted) {
+          _showTikTokError();
         }
       }
     } catch (e) {
+      debugPrint('Error launching TikTok URL: $e');
       if (mounted) {
-        FeedbackToast.showError(
-          context,
-          title: 'Error',
-          message: 'Ocurrió un problema al abrir el enlace.',
-        );
+        _showTikTokError();
       }
     }
+  }
+
+  void _showTikTokError() {
+    FeedbackToast.showError(
+      context,
+      title: 'Error de enlace',
+      message: 'No se pudo abrir la cuenta de TikTok.',
+    );
   }
 
   /// Signs the user out from Supabase Auth and navigates back to the SSO login screen.
@@ -346,12 +347,15 @@ class _HomeScreenState extends State<HomeScreen> {
             body: Stack(
               children: [
                 SafeArea(
-                  child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 650),
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                   // ── Header Profile Area ────────────────────────────────────
                   Row(
                     children: [
@@ -418,10 +422,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ],
                         ),
-                      ),
-                      IconButton(
-                        onPressed: _logout,
-                        icon: const Icon(Icons.logout_rounded, color: AppTheme.error),
                       ),
                     ],
                   ),
@@ -615,6 +615,128 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  // ── Settings & Account Options Card ────────────────────────
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                      border: Border.all(color: AppTheme.surfaceContainer, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFE8EFFF),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.manage_accounts_rounded,
+                                  color: AppTheme.primary,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Ajustes de Cuenta ⚙️',
+                                      style: AppTheme.labelLg.copyWith(fontSize: 15),
+                                    ),
+                                    Text(
+                                      'Gestiona tu sesión y datos personales',
+                                      style: AppTheme.bodyMd.copyWith(
+                                        color: AppTheme.onSurfaceVariant,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              // Log out button
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _logout,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppTheme.onSurfaceVariant,
+                                    side: const BorderSide(color: AppTheme.outline, width: 1.2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.logout_rounded, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Cerrar Sesión',
+                                        style: AppTheme.labelLg.copyWith(
+                                          fontSize: 12,
+                                          color: AppTheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Delete account button
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _deleteAccountNatively,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppTheme.error,
+                                    side: const BorderSide(color: AppTheme.error, width: 1.2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.delete_forever_rounded, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Eliminar Cuenta',
+                                        style: AppTheme.labelLg.copyWith(
+                                          fontSize: 12,
+                                          color: AppTheme.error,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
 
                   Text(
@@ -784,16 +906,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 24),
                     ],
-                  ),
+                  ), // closes footer Column
                 ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  },
-);
+              ), // closes main Column
+            ), // closes SingleChildScrollView
+          ), // closes ConstrainedBox
+        ), // closes Center
+      ), // closes SafeArea
+    ],
+  ), // closes Stack
+); // closes Scaffold
+},
+); // closes ShowCaseWidget
 }
 
   void _showVideoPresentationScreen() {

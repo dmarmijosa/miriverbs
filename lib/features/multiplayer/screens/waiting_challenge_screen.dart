@@ -365,9 +365,12 @@ class _WaitingChallengeScreenState extends State<WaitingChallengeScreen>
           ),
           child: SafeArea(
             child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: _rejected ? _buildRejected() : _buildWaiting(),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: _rejected ? _buildRejected() : _buildWaiting(),
+                ),
               ),
             ),
           ),

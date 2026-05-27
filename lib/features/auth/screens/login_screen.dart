@@ -154,7 +154,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                return SingleChildScrollView(
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 500),
+                    child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
@@ -289,8 +292,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       ),
                     ),
                   ),
-                );
-              },
+                ),
+              ),
+            );
+          },
             ),
           ),
         ],

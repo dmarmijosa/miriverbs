@@ -111,9 +111,12 @@ class _PresentationVideoScreenState extends State<PresentationVideoScreen> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 650),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
             const Spacer(),
             // Responsive Video Player container
             Center(
@@ -191,10 +194,11 @@ class _PresentationVideoScreenState extends State<PresentationVideoScreen> {
                 textColor: Colors.white,
               ),
             ),
-            const SizedBox(height: 12),
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
